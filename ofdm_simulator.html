@@ -1,0 +1,4169 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OFDM Signal Simulator — Advanced Digital Communications</title>
+  <style>
+    :root {
+      --bg: #040d1a;
+      --panel: #071525;
+      --panel2: #0a1d30;
+      --border: #152d48;
+      --border2: #1e3f60;
+      --accent: #00d4ff;
+      --accent2: #7c3aed;
+      --green: #10b981;
+      --amber: #f59e0b;
+      --red: #ef4444;
+      --text: #ddeeff;
+      --muted: #6a8faa;
+      --glow: 0 0 24px rgba(0, 212, 255, 0.25);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      height: 100%;
+    }
+
+    body {
+      height: 100%;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      font-size: 13px;
+    }
+
+    /* ── HEADER ── */
+    header {
+      height: 52px;
+      min-height: 52px;
+      background: linear-gradient(135deg, #071525, #0c2340);
+      border-bottom: 1px solid var(--border2);
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      gap: 16px;
+      flex-shrink: 0;
+    }
+
+    .logo {
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      background: linear-gradient(90deg, var(--accent) 0%, #a78bfa 60%, #f472b6 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 11px;
+      margin-top: 1px;
+    }
+
+    .header-badges {
+      margin-left: auto;
+      display: flex;
+      gap: 8px;
+    }
+
+    .badge {
+      padding: 3px 8px;
+      border-radius: 20px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      border: 1px solid;
+    }
+
+    .badge-cyan {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(0, 212, 255, 0.08);
+    }
+
+    .badge-purple {
+      border-color: var(--accent2);
+      color: var(--accent2);
+      background: rgba(124, 58, 237, 0.08);
+    }
+
+    /* ── LAYOUT ── */
+    .app {
+      display: grid;
+      grid-template-columns: 270px 1fr;
+      grid-template-rows: 1fr 52px;
+      flex: 1;
+      min-height: 0;
+      position: relative;
+      /* anchor for demo modal */
+    }
+
+    /* ── DEMO MODAL (covers visualisation area) ── */
+    .demo-modal {
+      display: none;
+      position: absolute;
+      top: 0;
+      left: 270px;
+      right: 0;
+      bottom: 52px;
+      background: #071525;
+      z-index: 40;
+      flex-direction: column;
+      padding: 14px 16px 10px;
+      border-left: 1px solid var(--border2);
+    }
+
+    .demo-modal.open {
+      display: flex;
+    }
+
+    .demo-hdr {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+      flex-shrink: 0;
+    }
+
+    .demo-title {
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--accent);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .demo-desc {
+      font-size: 11px;
+      color: var(--muted);
+      max-width: 600px;
+      line-height: 1.4;
+    }
+
+    .demo-close {
+      margin-left: auto;
+      padding: 4px 14px;
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid var(--red);
+      color: var(--red);
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 700;
+      width: auto;
+      margin-bottom: 0;
+    }
+
+    .demo-close:hover {
+      background: rgba(239, 68, 68, 0.25);
+      box-shadow: none;
+    }
+
+    #cvDemo {
+      flex: 1;
+      min-height: 0;
+      width: 100%;
+      display: block;
+      border-radius: 6px;
+      background: #040d1a;
+    }
+
+    .sidebar {
+      background: var(--panel);
+      border-right: 1px solid var(--border);
+      padding: 12px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      grid-row: 1 / 3;
+    }
+
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+      gap: 1px;
+      background: var(--border);
+      min-height: 0;
+      /* must be able to shrink inside the grid row */
+      overflow: hidden;
+    }
+
+    .statsbar {
+      background: var(--panel2);
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      gap: 24px;
+      overflow-x: auto;
+    }
+
+    /* ── VIZ PANELS ── */
+    .viz-panel {
+      background: var(--panel);
+      padding: 10px 12px 8px;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      /* allow panel to shrink inside its grid cell */
+      overflow: hidden;
+    }
+
+    .viz-title {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--accent);
+      margin-bottom: 6px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .viz-title .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 6px var(--accent);
+    }
+
+    canvas {
+      flex: 1;
+      width: 100%;
+      min-height: 0;
+      display: block;
+      border-radius: 4px;
+    }
+
+    /* ── STATS BAR ── */
+    .stat-item {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      white-space: nowrap;
+    }
+
+    .stat-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+    }
+
+    .stat-value {
+      font-size: 15px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      color: var(--text);
+    }
+
+    .stat-value.good {
+      color: var(--green);
+    }
+
+    .stat-value.warn {
+      color: var(--amber);
+    }
+
+    .stat-value.bad {
+      color: var(--red);
+    }
+
+    .stat-value.accent {
+      color: var(--accent);
+    }
+
+    .stat-sep {
+      width: 1px;
+      height: 32px;
+      background: var(--border);
+      margin: 0 4px;
+      flex-shrink: 0;
+    }
+
+    /* ── SIDEBAR CONTROLS ── */
+    .ctrl-group {
+      background: var(--panel2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+    }
+
+    .ctrl-group h3 {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--accent);
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .ctrl-row {
+      margin-bottom: 9px;
+    }
+
+    .ctrl-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .ctrl-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 4px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .ctrl-label strong {
+      color: var(--text);
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+
+    select,
+    input[type=range] {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border2);
+      color: var(--text);
+      border-radius: 5px;
+      padding: 5px 8px;
+      font-size: 12px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    select:focus {
+      border-color: var(--accent);
+    }
+
+    input[type=range] {
+      padding: 3px 0;
+      accent-color: var(--accent);
+      border: none;
+      background: transparent;
+      cursor: pointer;
+    }
+
+    .range-track {
+      position: relative;
+      height: 4px;
+      background: var(--border2);
+      border-radius: 2px;
+      margin: 5px 0;
+    }
+
+    .range-fill {
+      position: absolute;
+      left: 0;
+      top: 0;
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      border-radius: 2px;
+      pointer-events: none;
+    }
+
+    button {
+      width: 100%;
+      padding: 7px 10px;
+      background: rgba(0, 212, 255, 0.08);
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      transition: all 0.2s;
+      margin-bottom: 5px;
+    }
+
+    button:last-child {
+      margin-bottom: 0;
+    }
+
+    button:hover {
+      background: rgba(0, 212, 255, 0.16);
+      box-shadow: var(--glow);
+    }
+
+    button.purple {
+      background: rgba(124, 58, 237, 0.1);
+      border-color: var(--accent2);
+      color: var(--accent2);
+    }
+
+    button.purple:hover {
+      background: rgba(124, 58, 237, 0.2);
+      box-shadow: 0 0 20px rgba(124, 58, 237, 0.3);
+    }
+
+    button.green {
+      background: rgba(16, 185, 129, 0.1);
+      border-color: var(--green);
+      color: var(--green);
+    }
+
+    button.green:hover {
+      background: rgba(16, 185, 129, 0.2);
+    }
+
+    button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    .info-box {
+      background: rgba(0, 212, 255, 0.04);
+      border: 1px solid rgba(0, 212, 255, 0.15);
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 10.5px;
+      line-height: 1.6;
+      color: var(--muted);
+    }
+
+    .info-box .title {
+      color: var(--accent);
+      font-weight: 700;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .info-box .tech {
+      color: var(--amber);
+      font-weight: 600;
+    }
+
+    .mod-badge {
+      display: inline-block;
+      padding: 1px 6px;
+      border-radius: 3px;
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      vertical-align: middle;
+    }
+
+    .mb-cyan {
+      background: rgba(0, 212, 255, 0.15);
+      color: var(--accent);
+    }
+
+    .mb-green {
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--green);
+    }
+
+    .mb-amber {
+      background: rgba(245, 158, 11, 0.15);
+      color: var(--amber);
+    }
+
+    .mb-purple {
+      background: rgba(124, 58, 237, 0.15);
+      color: var(--accent2);
+    }
+
+    .mb-red {
+      background: rgba(239, 68, 68, 0.15);
+      color: var(--red);
+    }
+
+    /* scrollbar */
+    ::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--border2);
+      border-radius: 2px;
+    }
+
+    /* ── PANEL ACTION BUTTONS ── */
+    .panel-actions {
+      margin-left: auto;
+      display: flex;
+      gap: 3px;
+      align-items: center;
+    }
+
+    .panel-btn {
+      padding: 2px 7px;
+      background: rgba(0, 212, 255, 0.06);
+      border: 1px solid rgba(0, 212, 255, 0.15);
+      color: var(--muted);
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      transition: all 0.15s;
+      white-space: nowrap;
+      width: auto;
+      margin: 0;
+    }
+
+    .panel-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(0, 212, 255, 0.14);
+    }
+
+    .panel-btn.on {
+      border-color: var(--green);
+      color: var(--green);
+      background: rgba(16, 185, 129, 0.15);
+    }
+
+    .panel-btn.on:hover {
+      background: rgba(16, 185, 129, 0.25);
+    }
+
+    .panel-btn.eye-on {
+      border-color: var(--accent2);
+      color: var(--accent2);
+      background: rgba(124, 58, 237, 0.15);
+    }
+
+    /* ── COMPARISON BARS ── */
+    #cvModComp {
+      cursor: default;
+    }
+
+    /* ── TOOLTIP ── */
+    .tooltip-wrap {
+      position: relative;
+    }
+
+    .tooltip-wrap:hover .tooltip {
+      display: block;
+    }
+
+    .tooltip {
+      display: none;
+      position: absolute;
+      bottom: calc(100% + 6px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: #0d1e34;
+      border: 1px solid var(--border2);
+      color: var(--text);
+      font-size: 10px;
+      padding: 5px 8px;
+      border-radius: 4px;
+      white-space: nowrap;
+      z-index: 100;
+      pointer-events: none;
+    }
+  </style>
+</head>
+
+<body>
+
+  <header>
+    <div>
+      <div class="logo">⟋ OFDM Signal Simulator</div>
+      <div class="subtitle">Advanced Digital Communications &amp; Modulation Analysis</div>
+    </div>
+    <div class="header-badges">
+      <span class="badge badge-cyan">OFDM</span>
+      <span class="badge badge-cyan">QAM up to 65536</span>
+      <span class="badge badge-purple">Real-time Monte Carlo</span>
+    </div>
+  </header>
+
+  <div class="app">
+
+    <!-- ══ SIDEBAR ══ -->
+    <aside class="sidebar">
+
+      <div class="ctrl-group">
+        <h3><span style="font-size:13px">◈</span> Modulation Scheme</h3>
+        <div class="ctrl-row">
+          <select id="modSelect">
+            <option value="BPSK">BPSK · 1 bit / symbol</option>
+            <option value="QPSK">QPSK · 2 bits / symbol</option>
+            <option value="8PSK">8-PSK · 3 bits / symbol</option>
+            <option value="16QAM" selected>16-QAM · 4 bits / symbol</option>
+            <option value="64QAM">64-QAM · 6 bits / symbol</option>
+            <option value="256QAM">256-QAM · 8 bits / symbol</option>
+            <option value="1024QAM">1024-QAM · 10 bits / symbol ★</option>
+            <option value="4096QAM">4096-QAM · 12 bits / symbol ★★</option>
+            <option value="16384QAM">16384-QAM · 14 bits / symbol [Future 6G]</option>
+            <option value="65536QAM">65536-QAM · 16 bits / symbol [Theoretical]</option>
+          </select>
+        </div>
+        <div id="modInfoBox" class="info-box"></div>
+      </div>
+
+      <div class="ctrl-group">
+        <h3><span style="font-size:13px">≋</span> Channel Conditions</h3>
+        <div class="ctrl-row">
+          <div class="ctrl-label">SNR (E<sub>s</sub>/N₀) <strong id="snrLabel">20.0 dB</strong></div>
+          <input type="range" id="snrSlider" min="-5" max="40" step="0.5" value="20">
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Channel Model</div>
+          <select id="chSelect">
+            <option value="awgn">AWGN — Additive White Gaussian Noise</option>
+            <option value="rayleigh">Rayleigh Flat Fading + AWGN</option>
+            <option value="multipath">Frequency-Selective Multipath</option>
+            <option value="phase_noise">Phase Noise — Oscillator jitter (try on 1024-QAM+)</option>
+            <option value="doppler">Doppler Fading — Mobile receiver (v > 0)</option>
+            <option value="cfo">CFO — Carrier Frequency Offset (ICI)</option>
+          </select>
+        </div>
+        <div class="ctrl-row" id="cfoRow" style="display:none">
+          <div class="ctrl-label">CFO (fraction of Δf) <strong id="cfoLabel">0.10</strong></div>
+          <input type="range" id="cfoSlider" min="0.01" max="0.5" step="0.01" value="0.1">
+        </div>
+        <div class="ctrl-row" id="dopplerRow" style="display:none">
+          <div class="ctrl-label">Doppler fd·T <strong id="dopplerLabel">0.02</strong></div>
+          <input type="range" id="dopplerSlider" min="0.001" max="0.15" step="0.001" value="0.02">
+        </div>
+      </div>
+
+      <div class="ctrl-group">
+        <h3><span style="font-size:13px">〰</span> OFDM Parameters</h3>
+        <div class="ctrl-row">
+          <div class="ctrl-label">FFT Size <strong id="fftLabel">64</strong></div>
+          <input type="range" id="fftSlider" min="0" max="5" step="1" value="2">
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Cyclic Prefix Ratio</div>
+          <select id="cpSelect">
+            <option value="0.0625">1/16 — High efficiency</option>
+            <option value="0.125">1/8</option>
+            <option value="0.25" selected>1/4 — Standard (LTE)</option>
+            <option value="0.5">1/2 — High delay spread</option>
+          </select>
+        </div>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Symbol Count <strong id="symLabel">200</strong></div>
+          <input type="range" id="symSlider" min="0" max="5" step="1" value="2">
+        </div>
+      </div>
+
+      <div class="ctrl-group">
+        <h3>🔐 Forward Error Correction</h3>
+        <div class="ctrl-row">
+          <div class="ctrl-label">Channel Coding</div>
+          <select id="fecSelect">
+            <option value="none">None (uncoded)</option>
+            <option value="rep3">Repetition Code · Rate 1/3</option>
+            <option value="conv">Convolutional · Rate 1/2, K=3</option>
+          </select>
+        </div>
+        <div id="fecInfoBox" class="info-box" style="margin-top:6px;font-size:10px"></div>
+      </div>
+
+      <div class="ctrl-group">
+        <h3><span style="font-size:13px">⚡</span> Simulation</h3>
+        <button id="btnRun">▶ Run Simulation</button>
+        <button id="btnBER" class="purple">📈 BER Sweep (Full SNR Range)</button>
+        <button id="btnAnimate" class="green">🎬 Animate SNR Sweep</button>
+        <button id="btnMath" onclick="openMathReport()"
+          style="background:rgba(245,158,11,0.1);border-color:var(--amber);color:var(--amber)">📐 Math Report (Download
+          PDF)</button>
+      </div>
+
+      <div class="ctrl-group">
+        <h3>🎓 Educational Demos</h3>
+        <button onclick="openDemo('ortho')" class="purple">📡 Orthogonality Visualizer</button>
+        <button onclick="openDemo('cp')" class="purple">⚡ Cyclic Prefix / ISI Demo</button>
+        <button onclick="openDemo('channel')" class="purple">📶 Channel Estimation Demo</button>
+        <button onclick="openDemo('cfo')" class="purple">📡 CFO / ICI Demo</button>
+        <button onclick="openDemo('fec')"     class="purple">🔐 FEC Coding Gain Demo</button>
+        <button onclick="openDemo('fourier')" class="purple">🌊 Fourier Transform Playground</button>
+      </div>
+
+      <div class="ctrl-group">
+        <h3>🖼 Image Transmission Demo</h3>
+        <canvas id="cvImg"
+          style="width:100%;height:64px;display:block;border-radius:4px;background:#040d1a;image-rendering:pixelated;"></canvas>
+        <div id="imgStats" style="font-size:10px;color:var(--muted);margin-top:3px;line-height:1.4">Run simulation to
+          transmit image</div>
+      </div>
+
+      <div class="ctrl-group" id="nrInfoBox" style="display:none">
+        <h3>📶 5G NR Numerology</h3>
+        <div id="nrInfoText" class="info-box" style="font-size:10px;line-height:1.7"></div>
+      </div>
+
+      <div class="ctrl-group">
+        <h3>🎯 Adaptive Modulation (AMC)</h3>
+        <div id="amcBox" class="info-box" style="font-size:10px;line-height:1.7"></div>
+      </div>
+
+      <div class="info-box" id="efficiencyBox">
+        <div class="title">OFDM Efficiency</div>
+        <div id="effText" style="margin-top:4px"></div>
+      </div>
+
+      <div class="ctrl-group">
+        <h3>📊 All Modulations @ Current SNR</h3>
+        <canvas id="cvModComp"
+          style="width:100%;height:148px;display:block;border-radius:4px;background:#040d1a;"></canvas>
+      </div>
+
+    </aside>
+
+    <!-- ══ VISUALIZATIONS ══ -->
+    <div class="main-grid">
+      <div class="viz-panel">
+        <div class="viz-title">
+          <div class="dot"></div>Constellation Diagram
+          <div class="panel-actions">
+            <button class="panel-btn on" id="btnErrColor" onclick="toggleErrColor()"
+              title="Color received dots: green=correct, red=error">● Errors</button>
+            <button class="panel-btn" onclick="exportCanvas('cvConst')" title="Save as PNG">💾</button>
+          </div>
+        </div>
+        <canvas id="cvConst"></canvas>
+      </div>
+      <div class="viz-panel">
+        <div class="viz-title">
+          <div class="dot" style="background:#a78bfa;box-shadow:0 0 6px #a78bfa"></div>OFDM Frequency Spectrum
+          <div class="panel-actions">
+            <button class="panel-btn" onclick="exportCanvas('cvSpec')" title="Save as PNG">💾</button>
+          </div>
+        </div>
+        <canvas id="cvSpec"></canvas>
+      </div>
+      <div class="viz-panel">
+        <div class="viz-title">
+          <div class="dot" style="background:var(--green);box-shadow:0 0 6px var(--green)"></div><span
+            id="timePanelTitle">Time Domain Signal</span>
+          <div class="panel-actions">
+            <button class="panel-btn" id="btnEye" onclick="toggleEye()"
+              title="Overlay multiple OFDM symbols (Eye Diagram)">👁 Eye</button>
+            <button class="panel-btn" onclick="exportCanvas('cvTime')" title="Save as PNG">💾</button>
+          </div>
+        </div>
+        <canvas id="cvTime"></canvas>
+      </div>
+      <div class="viz-panel">
+        <div class="viz-title">
+          <div class="dot" style="background:var(--amber);box-shadow:0 0 6px var(--amber)"></div>BER vs E<sub>s</sub>/N₀
+          <div class="panel-actions">
+            <button class="panel-btn" onclick="exportCanvas('cvBER')" title="Save as PNG">💾</button>
+          </div>
+        </div>
+        <canvas id="cvBER"></canvas>
+      </div>
+    </div>
+
+    <!-- ══ DEMO MODAL ══ -->
+    <div class="demo-modal" id="demoModal">
+      <div class="demo-hdr">
+        <div>
+          <div class="demo-title" id="demoTitle">Demo</div>
+          <div class="demo-desc" id="demoDesc"></div>
+        </div>
+        <button class="demo-close" onclick="closeDemo()">✕ Close [Esc]</button>
+      </div>
+      <canvas id="cvDemo"></canvas>
+    </div>
+
+    <!-- ══ STATS BAR ══ -->
+    <div class="statsbar">
+      <div class="stat-item">
+        <div class="stat-label">Modulation</div>
+        <div class="stat-value accent" id="sMod">16-QAM</div>
+      </div>
+      <div class="stat-sep"></div>
+      <div class="stat-item">
+        <div class="stat-label">Es/N₀</div>
+        <div class="stat-value" id="sSnr">20.0 dB</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">Eb/N₀</div>
+        <div class="stat-value" id="sEbn0">16.0 dB</div>
+      </div>
+      <div class="stat-sep"></div>
+      <div class="stat-item">
+        <div class="stat-label">BER Simulated</div>
+        <div class="stat-value good" id="sBerSim">—</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">BER Theoretical</div>
+        <div class="stat-value" id="sBerTh">—</div>
+      </div>
+      <div class="stat-sep"></div>
+      <div class="stat-item">
+        <div class="stat-label">Bit Errors</div>
+        <div class="stat-value" id="sErrors">—</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">Total Bits</div>
+        <div class="stat-value" id="sBits">—</div>
+      </div>
+      <div class="stat-sep"></div>
+      <div class="stat-item">
+        <div class="stat-label">Spectral Eff.</div>
+        <div class="stat-value" id="sSpeff">—</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">Data Subcarriers</div>
+        <div class="stat-value" id="sNdata">—</div>
+      </div>
+      <div class="stat-sep"></div>
+      <div class="stat-item tooltip-wrap">
+        <div class="stat-label">PAPR</div>
+        <div class="stat-value" id="sPapr">—</div>
+        <div class="tooltip">Peak-to-Average Power Ratio<br>OFDM weakness vs single-carrier</div>
+      </div>
+      <div class="stat-item tooltip-wrap">
+        <div class="stat-label">Shannon Cap.</div>
+        <div class="stat-value" id="sCapacity">—</div>
+        <div class="tooltip">C = log₂(1 + SNR) bits/use<br>Maximum theoretical rate</div>
+      </div>
+      <div class="stat-item tooltip-wrap">
+        <div class="stat-label">Shannon Min SNR</div>
+        <div class="stat-value" id="sShannon">—</div>
+        <div class="tooltip">Minimum SNR needed for<br>error-free comms at this rate</div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    'use strict';
+
+    // ════════════════════════════════════════════════════════
+    //  MATH & UTILITIES
+    // ════════════════════════════════════════════════════════
+
+    function grayEncode(n) { return n ^ (n >> 1); }
+    function grayDecode(n) { let m = n >> 1; while (m) { n ^= m; m >>= 1; } return n; }
+
+    // Box-Muller Gaussian random
+    let _bm_spare = 0, _bm_has = false;
+    function randn() {
+      if (_bm_has) { _bm_has = false; return _bm_spare; }
+      let u, v, s;
+      do { u = Math.random() * 2 - 1; v = Math.random() * 2 - 1; s = u * u + v * v; } while (s >= 1 || s === 0);
+      const m = Math.sqrt(-2 * Math.log(s) / s);
+      _bm_spare = v * m; _bm_has = true;
+      return u * m;
+    }
+
+    // erfc (Abramowitz & Stegun 7.1.26)
+    function erfc(x) {
+      if (x < 0) return 2 - erfc(-x);
+      const t = 1 / (1 + 0.3275911 * x);
+      return t * (0.254829592 + t * (-0.284496736 + t * (1.421413741 + t * (-1.453152027 + t * 1.061405429)))) * Math.exp(-x * x);
+    }
+    function Qfn(x) { return 0.5 * erfc(x / Math.SQRT2); }
+
+    // In-place FFT/IFFT (Cooley-Tukey)
+    function fft(re, im, inv = false) {
+      const n = re.length;
+      for (let i = 1, j = 0; i < n; i++) {
+        let bit = n >> 1;
+        for (; j & bit; bit >>= 1) j ^= bit;
+        j ^= bit;
+        if (i < j) { [re[i], re[j]] = [re[j], re[i]];[im[i], im[j]] = [im[j], im[i]]; }
+      }
+      for (let len = 2; len <= n; len <<= 1) {
+        const ang = (inv ? 2 : -2) * Math.PI / len;
+        const wr = Math.cos(ang), wi = Math.sin(ang);
+        for (let i = 0; i < n; i += len) {
+          let cr = 1, ci = 0;
+          for (let j = 0; j < (len >> 1); j++) {
+            const ur = re[i + j], ui = im[i + j];
+            const vr = re[i + j + (len >> 1)] * cr - im[i + j + (len >> 1)] * ci;
+            const vi = re[i + j + (len >> 1)] * ci + im[i + j + (len >> 1)] * cr;
+            re[i + j] = ur + vr; im[i + j] = ui + vi;
+            re[i + j + (len >> 1)] = ur - vr; im[i + j + (len >> 1)] = ui - vi;
+            const nr = cr * wr - ci * wi; ci = cr * wi + ci * wr; cr = nr;
+          }
+        }
+      }
+      if (inv) { for (let i = 0; i < n; i++) { re[i] /= n; im[i] /= n; } }
+    }
+
+    // ════════════════════════════════════════════════════════
+    //  CONSTELLATION GENERATION
+    // ════════════════════════════════════════════════════════
+
+    const MOD_CACHE = {};
+
+    function buildMod(name) {
+      if (MOD_CACHE[name]) return MOD_CACHE[name];
+      let points = [], bps;
+
+      if (name === 'BPSK') {
+        bps = 1;
+        points = [{ I: -1, Q: 0, sym: 0 }, { I: 1, Q: 0, sym: 1 }];
+
+      } else if (name === 'QPSK') {
+        bps = 2;
+        // Standard Gray-coded QPSK (45° offset)
+        // Bit 00→45°, 01→135°, 11→225°, 10→315°
+        const angles = [Math.PI / 4, 3 * Math.PI / 4, 5 * Math.PI / 4, 7 * Math.PI / 4];
+        const syms = [0b00, 0b01, 0b11, 0b10];
+        for (let k = 0; k < 4; k++) points.push({ I: Math.cos(angles[k]), Q: Math.sin(angles[k]), sym: syms[k] });
+
+      } else if (name === '8PSK') {
+        bps = 3;
+        for (let k = 0; k < 8; k++) {
+          const ang = 2 * Math.PI * k / 8 + Math.PI / 8;
+          points.push({ I: Math.cos(ang), Q: Math.sin(ang), sym: grayEncode(k) });
+        }
+
+      } else {
+        // Square M-QAM
+        const M = parseInt(name.replace('QAM', ''));
+        bps = Math.log2(M);
+        const L = Math.round(Math.sqrt(M));
+        const bpd = bps >> 1; // bits per dimension
+
+        // ampForGray[grayCode] = unnormalized amplitude level
+        const ampForGray = new Array(L);
+        for (let i = 0; i < L; i++) ampForGray[grayEncode(i)] = 2 * i - (L - 1);
+
+        // Normalization: average power of L-PAM = (L²-1)/3 per dimension
+        const avgPow = 2 * (L * L - 1) / 3;  // for both I and Q combined
+        const scale = Math.sqrt(avgPow);
+
+        for (let sym = 0; sym < M; sym++) {
+          const igray = sym & ((1 << bpd) - 1);
+          const qgray = (sym >> bpd) & ((1 << bpd) - 1);
+          points.push({ I: ampForGray[igray] / scale, Q: ampForGray[qgray] / scale, sym });
+        }
+      }
+
+      // Build lookup map sym → point (sorted by sym for demod)
+      const lookup = new Map(points.map(p => [p.sym, p]));
+      // Also store QAM-specific precomputed scale for fast decision
+      let qamScale = 1, qamL = 2, qamBpd = 1;
+      if (name.endsWith('QAM') && name !== '8QAM') {
+        const M = parseInt(name.replace('QAM', ''));
+        qamL = Math.round(Math.sqrt(M));
+        qamBpd = bps >> 1;
+        qamScale = Math.sqrt(2 * (qamL * qamL - 1) / 3);
+      }
+      const mod = { name, points, bps, lookup, M: 1 << bps, qamScale, qamL, qamBpd };
+      MOD_CACHE[name] = mod;
+      return mod;
+    }
+
+    // Fast QAM nearest-point decision (O(1) per symbol)
+    function qamDecide(rxI, rxQ, mod) {
+      const { qamL, qamBpd, qamScale } = mod;
+      function decideDim(v) {
+        const unnorm = v * qamScale;
+        const idx = Math.max(0, Math.min(qamL - 1, Math.round((unnorm + qamL - 1) / 2)));
+        return grayEncode(idx);
+      }
+      return (decideDim(rxQ) << qamBpd) | decideDim(rxI);
+    }
+
+    function modulate(bits, name) {
+      const mod = buildMod(name);
+      const bps = mod.bps;
+      const syms = [];
+      for (let i = 0; i < bits.length - bps + 1; i += bps) {
+        let s = 0;
+        for (let b = 0; b < bps; b++) s = (s << 1) | bits[i + b];
+        const p = mod.lookup.get(s) || mod.points[0];
+        syms.push({ I: p.I, Q: p.Q, sym: s });
+      }
+      return syms;
+    }
+
+    function demodulate(rxSyms, name) {
+      const mod = buildMod(name);
+      const bps = mod.bps;
+      const bits = [];
+      const isQAM = name.endsWith('QAM') && name !== '8PSK';
+
+      for (const rx of rxSyms) {
+        let s;
+        if (isQAM && name !== 'QPSK') {
+          s = qamDecide(rx.I, rx.Q, mod);
+        } else if (name === 'BPSK') {
+          s = rx.I >= 0 ? 1 : 0;
+        } else {
+          // PSK / QPSK: nearest neighbour (M ≤ 8, so cheap)
+          let md = Infinity; s = 0;
+          for (const p of mod.points) {
+            const d = (rx.I - p.I) ** 2 + (rx.Q - p.Q) ** 2;
+            if (d < md) { md = d; s = p.sym; }
+          }
+        }
+        for (let b = bps - 1; b >= 0; b--) bits.push((s >> b) & 1);
+      }
+      return bits;
+    }
+
+    // ════════════════════════════════════════════════════════
+    //  OFDM PROCESSING
+    // ════════════════════════════════════════════════════════
+
+    function ofdmParams(fftSize, cpRatio) {
+      const N = fftSize;
+      const Ncp = Math.max(1, Math.round(N * cpRatio));
+      const Nguard = Math.max(2, Math.floor(N * 0.08)); // guard bands each side
+      // Data subcarriers: Nguard to N/2-1 (skip DC at N/2) and N/2+1 to N-1-Nguard
+      const Ndata = (N / 2 - Nguard) + (N / 2 - 1 - Nguard);
+      return { N, Ncp, Nguard, Ndata };
+    }
+
+    // Modulate data symbols → OFDM time-domain (with CP)
+    function ofdmTx(dataSyms, params) {
+      const { N, Ncp, Nguard } = params;
+      const freRe = new Float64Array(N), freIm = new Float64Array(N);
+
+      // Fill subcarriers (guard bands = 0, DC = 0)
+      let idx = 0;
+      for (let k = Nguard; k < N / 2; k++) {
+        if (idx < dataSyms.length) { freRe[k] = dataSyms[idx].I; freIm[k] = dataSyms[idx].Q; idx++; }
+      }
+      for (let k = N / 2 + 1; k < N - Nguard; k++) {
+        if (idx < dataSyms.length) { freRe[k] = dataSyms[idx].I; freIm[k] = dataSyms[idx].Q; idx++; }
+      }
+
+      // IFFT
+      const re = freRe.slice(), im = freIm.slice();
+      fft(re, im, true);
+
+      // Normalize so average power ≈ 1
+      let p = 0; for (let i = 0; i < N; i++) p += re[i] * re[i] + im[i] * im[i]; p /= N;
+      const sc = p > 0 ? 1 / Math.sqrt(p) : 1;
+      for (let i = 0; i < N; i++) { re[i] *= sc; im[i] *= sc; }
+
+      // Add CP
+      const total = N + Ncp;
+      const tout = new Float64Array(total), iout = new Float64Array(total);
+      for (let i = 0; i < Ncp; i++) { tout[i] = re[N - Ncp + i]; iout[i] = im[N - Ncp + i]; }
+      for (let i = 0; i < N; i++) { tout[Ncp + i] = re[i]; iout[Ncp + i] = im[i]; }
+
+      return { re: tout, im: iout, freRe, freIm };
+    }
+
+    // ════════════════════════════════════════════════════════
+    //  CHANNEL MODELS
+    // ════════════════════════════════════════════════════════
+
+    function chanAWGN(sigRe, sigIm, snrDb) {
+      const snr = Math.pow(10, snrDb / 10);
+      // Compute actual signal power
+      let p = 0; for (let i = 0; i < sigRe.length; i++) p += sigRe[i] * sigRe[i] + sigIm[i] * sigIm[i];
+      p /= sigRe.length;
+      const sigma = Math.sqrt(p / (2 * snr));
+      const re = new Float64Array(sigRe.length), im = new Float64Array(sigIm.length);
+      for (let i = 0; i < sigRe.length; i++) { re[i] = sigRe[i] + sigma * randn(); im[i] = sigIm[i] + sigma * randn(); }
+      return { re, im };
+    }
+
+    // Per-symbol channel for direct baseband simulation
+    function addSymbolNoise(symI, symQ, snrDb, channel) {
+      const snr = Math.pow(10, snrDb / 10);
+      const sigma = Math.sqrt(0.5 / snr); // Es = 1
+
+      if (channel === 'awgn') {
+        return { I: symI + sigma * randn(), Q: symQ + sigma * randn() };
+      }
+      if (channel === 'rayleigh') {
+        const hr = randn() / Math.SQRT2, hi = randn() / Math.SQRT2;
+        const yr = symI * hr - symQ * hi + sigma * randn();
+        const yi = symI * hi + symQ * hr + sigma * randn();
+        const h2 = hr * hr + hi * hi;
+        if (h2 < 1e-10) return { I: yr, Q: yi };
+        return { I: (yr * hr + yi * hi) / h2, Q: (-yr * hi + yi * hr) / h2 };
+      }
+      if (channel === 'doppler') {
+        // Time-varying phase rotation (Doppler causes random walk of carrier phase)
+        const fd = STATE.dopplerFd;
+        const ph = randn() * 2 * Math.PI * fd * 10; // accumulated phase spread
+        const cp = Math.cos(ph), sp = Math.sin(ph);
+        return {
+          I: symI * cp - symQ * sp + sigma * randn(),
+          Q: symI * sp + symQ * cp + sigma * randn()
+        };
+      }
+      if (channel === 'cfo') {
+        // CFO causes a phase ramp across subcarriers + ICI (modeled as additive interference)
+        const eps = STATE.cfoAmount; // fractional CFO (fraction of subcarrier spacing)
+        // Sinc attenuation on desired subcarrier
+        const sinc_att = Math.abs(Math.sin(Math.PI * eps) / (Math.PI * eps + 1e-12));
+        // ICI from adjacent subcarriers — approximated as Gaussian noise
+        const ici_sigma = Math.sqrt(Math.max(0, 1 - sinc_att * sinc_att) * 0.5);
+        const attI = symI * sinc_att + ici_sigma * randn();
+        const attQ = symQ * sinc_att + ici_sigma * randn();
+        return {
+          I: attI + sigma * randn(),
+          Q: attQ + sigma * randn()
+        };
+      }
+      if (channel === 'phase_noise') {
+        // Oscillator phase noise: random phase rotation (gets WORSE at higher SNR — unlike AWGN)
+        // This is why 1024-QAM+ needs ultra-stable oscillators
+        const sigma_ph = Math.max(0.004, 0.18 / Math.sqrt(snr)); // phase noise std in radians
+        const ph_noise = randn() * sigma_ph;
+        const cp = Math.cos(ph_noise), sp = Math.sin(ph_noise);
+        return {
+          I: symI * cp - symQ * sp + sigma * randn(),
+          Q: symI * sp + symQ * cp + sigma * randn()
+        };
+      }
+      // multipath: random amplitude + phase + AWGN (then equalize)
+      const amp = 0.5 + Math.random() * 1.0;
+      const ph = Math.random() * 2 * Math.PI;
+      const yr = symI * amp * Math.cos(ph) - symQ * amp * Math.sin(ph) + sigma * randn();
+      const yi = symI * amp * Math.sin(ph) + symQ * amp * Math.cos(ph) + sigma * randn();
+      // Equalize (perfect channel knowledge)
+      return { I: yr / amp, Q: yi / amp };
+    }
+
+    // ════════════════════════════════════════════════════════
+    //  THEORETICAL BER
+    // ════════════════════════════════════════════════════════
+
+    function theorBER(modName, EsN0dB) {
+      const mod = buildMod(modName);
+      const k = mod.bps;
+      const EsN0 = Math.pow(10, EsN0dB / 10);
+      const EbN0 = EsN0 / k;
+
+      if (modName === 'BPSK') return 0.5 * erfc(Math.sqrt(EbN0));
+      if (modName === 'QPSK') return 0.5 * erfc(Math.sqrt(EbN0));
+      if (modName === '8PSK') {
+        return (2 / 3) * Qfn(Math.sqrt(2 * 3 * EbN0) * Math.sin(Math.PI / 8));
+      }
+      // Square M-QAM
+      const M = mod.M, L = Math.round(Math.sqrt(M));
+      const arg = Math.sqrt(3 * k * EbN0 / (M - 1));
+      return (4 / k) * (1 - 1 / L) * 0.5 * erfc(arg / Math.SQRT2);
+    }
+
+    // ════════════════════════════════════════════════════════
+    //  FORWARD ERROR CORRECTION
+    // ════════════════════════════════════════════════════════
+
+    // --- Rate-1/3 Repetition Code ---
+    function repEncode(bits) {
+      const out = new Uint8Array(bits.length * 3);
+      for (let i = 0; i < bits.length; i++) {
+        out[3 * i] = out[3 * i + 1] = out[3 * i + 2] = bits[i];
+      }
+      return out;
+    }
+    function repDecode(bits) {
+      const n = Math.floor(bits.length / 3);
+      const out = new Uint8Array(n);
+      for (let i = 0; i < n; i++) {
+        // Majority vote
+        out[i] = (bits[3 * i] + bits[3 * i + 1] + bits[3 * i + 2]) >= 2 ? 1 : 0;
+      }
+      return out;
+    }
+
+    // --- Rate-1/2 Convolutional Code (K=3, g1=111, g2=101) ---
+    // State = (prev1, prev2), encoded as 2-bit integer: state = (prev1<<1)|prev2
+    function convEncode(bits) {
+      const len = bits.length + 2; // +2 tail bits to flush to state 0
+      const out = new Uint8Array(len * 2);
+      let state = 0; // shift register: (u[t-1], u[t-2])
+      for (let i = 0; i < len; i++) {
+        const u = i < bits.length ? bits[i] : 0; // tail bits are zero
+        const p1 = (state >> 1) & 1, p2 = state & 1;
+        out[2 * i] = u ^ p1 ^ p2; // c1 — generator 1+D+D² = 111
+        out[2 * i + 1] = u ^ p2;      // c2 — generator 1+D²   = 101
+        state = (u << 1) | p1;
+      }
+      return out;
+    }
+
+    function convDecode(rxBits, origLen) {
+      const N_STATES = 4, INF = 1e9;
+      const n = Math.floor(rxBits.length / 2);
+      const metrics = new Float64Array(N_STATES).fill(INF);
+      metrics[0] = 0;
+      const survivors = [];
+
+      for (let t = 0; t < n; t++) {
+        const r0 = rxBits[2 * t], r1 = rxBits[2 * t + 1];
+        const newM = new Float64Array(N_STATES).fill(INF);
+        const prev = new Int8Array(N_STATES).fill(-1);
+        for (let s = 0; s < N_STATES; s++) {
+          if (metrics[s] >= INF) continue;
+          const p1 = (s >> 1) & 1, p2 = s & 1;
+          for (const u of [0, 1]) {
+            const c1 = u ^ p1 ^ p2, c2 = u ^ p2;
+            const ns = (u << 1) | p1;
+            const hd = (c1 !== r0 ? 1 : 0) + (c2 !== r1 ? 1 : 0);
+            const m = metrics[s] + hd;
+            if (m < newM[ns]) { newM[ns] = m; prev[ns] = s; }
+          }
+        }
+        metrics.set(newM);
+        survivors.push(Int8Array.from(prev));
+      }
+
+      // Traceback from terminal state 0
+      const decoded = new Uint8Array(origLen);
+      let st = 0;
+      for (let t = n - 1; t >= 0; t--) {
+        if (t < origLen) decoded[t] = (st >> 1) & 1; // input bit = MSB of next state
+        const prev = survivors[t][st];
+        st = (prev !== undefined && prev >= 0) ? prev : 0; // guard against unreachable states
+      }
+      return decoded;
+    }
+
+    // Theoretical BER for coded systems (AWGN)
+    function codedBER(fec, modName, EsN0dB) {
+      if (fec === 'none') return theorBER(modName, EsN0dB);
+      const k = buildMod(modName).bps;
+      const EbN0 = Math.pow(10, EsN0dB / 10) / k;
+      if (fec === 'rep3') {
+        // Rate-1/3 repetition: each coded bit has 1/3 of info-bit energy.
+        // Use the actual modulation's uncoded BER at reduced Eb/N0 as channel bit error prob.
+        const EbN0_coded = EbN0 / 3;
+        const EsN0_coded_dB = 10 * Math.log10(EbN0_coded * k);
+        const p = theorBER(modName, EsN0_coded_dB); // channel BER per coded bit
+        return Math.max(0, Math.min(0.5, 3 * p * p - 2 * p * p * p)); // majority-vote decoder
+      }
+      if (fec === 'conv') {
+        // Rate-1/2 conv code K=3, d_free=5, a_{d_free}=10 (union bound, BPSK pairwise PE)
+        // BER ≈ 10 · Q(√(d_free · 2 · Rc · Eb/N0))
+        const Rc = 0.5, dfree = 5;
+        return Math.min(0.5, 10 * Qfn(Math.sqrt(dfree * 2 * Rc * EbN0)));
+      }
+      return theorBER(modName, EsN0dB);
+    }
+
+    // ════════════════════════════════════════════════════════
+    //  STATE
+    // ════════════════════════════════════════════════════════
+
+    const FFT_SIZES = [16, 32, 64, 128, 256, 512];
+    const SYM_COUNTS = [50, 100, 200, 500, 1000, 2000];
+
+    const STATE = {
+      mod: '16QAM',
+      snrDb: 20,
+      fftIdx: 2,
+      cpRatio: 0.25,
+      channel: 'awgn',
+      symIdx: 2,
+      fec: 'none',
+      cfoAmount: 0.10,
+      dopplerFd: 0.02,
+
+      // Results
+      rxSyms: [],
+      rxCorrect: null,
+      berSim: NaN,
+      berTh: NaN,
+      numErrors: 0,
+      numBits: 0,
+      papr: NaN,
+      capacity: NaN,
+      ofdmFreRe: null,
+      ofdmFreIm: null,
+      ofdmTime: null,
+      eyeSymbols: [],
+
+      // BER sweep data
+      berSnr: [],
+      berThArr: [],
+      berSimArr: [],
+      sweeping: false,
+      sweepIdx: 0,
+      animating: false,
+      animSnr: -5,
+    };
+
+    // ════════════════════════════════════════════════════════
+    //  SIMULATION
+    // ════════════════════════════════════════════════════════
+
+    function runSim() {
+      const S = STATE;
+      const mod = buildMod(S.mod);
+      const N = FFT_SIZES[S.fftIdx];
+      const params = ofdmParams(N, S.cpRatio);
+      const nOFDMSyms = SYM_COUNTS[S.symIdx];
+      const nDataSubcarriers = params.Ndata;
+
+      // Generate bits — use Math.random (no size limit, crypto.getRandomValues caps at 65536 bytes)
+      const totalSyms = nOFDMSyms * nDataSubcarriers;
+      // For FEC, original info bits are fewer; coded bits fill the same channel capacity
+      let infoBits;
+      if (S.fec === 'rep3') {
+        infoBits = new Uint8Array(Math.floor(totalSyms * mod.bps / 3));
+      } else if (S.fec === 'conv') {
+        infoBits = new Uint8Array(Math.floor(totalSyms * mod.bps / 2) - 2);
+      } else {
+        infoBits = new Uint8Array(totalSyms * mod.bps);
+      }
+      for (let i = 0; i < infoBits.length; i++) infoBits[i] = (Math.random() < 0.5) ? 1 : 0;
+
+      // Encode
+      let txBits;
+      if (S.fec === 'rep3') txBits = repEncode(infoBits);
+      else if (S.fec === 'conv') txBits = convEncode(infoBits);
+      else txBits = infoBits;
+
+      const txSyms = modulate(txBits, S.mod);
+
+      // Add noise per-symbol (equivalent to OFDM over AWGN)
+      const rxSymsAll = txSyms.map(s => addSymbolNoise(s.I, s.Q, S.snrDb, S.channel));
+
+      // Demodulate → soft/hard bits
+      const rxBitsChan = demodulate(rxSymsAll, S.mod);
+
+      // Decode FEC
+      let rxBits;
+      if (S.fec === 'rep3') rxBits = repDecode(rxBitsChan);
+      else if (S.fec === 'conv') rxBits = convDecode(rxBitsChan, infoBits.length);
+      else rxBits = rxBitsChan;
+
+      // Bit errors (compare against info bits)
+      let errors = 0;
+      const len = Math.min(infoBits.length, rxBits.length);
+      for (let i = 0; i < len; i++) if (infoBits[i] !== rxBits[i]) errors++;
+
+      const displayCount = Math.min(800, rxSymsAll.length);
+      S.rxSyms = rxSymsAll.slice(0, displayCount);
+      S.berSim = errors / len;
+      S.berTh = codedBER(S.fec, S.mod, S.snrDb);
+      S.numErrors = errors;
+      S.numBits = len;
+      S.capacity = Math.log2(1 + Math.pow(10, S.snrDb / 10));
+
+      // Per-symbol correctness (for error coloring on constellation)
+      // Compare channel-level bits (before FEC decode) against txBits (coded)
+      const bps = mod.bps;
+      const rxCorrect = new Uint8Array(displayCount);
+      for (let i = 0; i < displayCount; i++) {
+        let ok = true;
+        for (let b = 0; b < bps && ok; b++) {
+          if (rxBitsChan[i * bps + b] !== txBits[i * bps + b]) ok = false;
+        }
+        rxCorrect[i] = ok ? 1 : 0;
+      }
+      S.rxCorrect = rxCorrect;
+
+      // OFDM time-domain signal (first OFDM symbol for display)
+      const vizSyms = txSyms.slice(0, nDataSubcarriers);
+      const ofdm = ofdmTx(vizSyms, params);
+      S.ofdmFreRe = ofdm.freRe;
+      S.ofdmFreIm = ofdm.freIm;
+      S.ofdmTime = { re: ofdm.re, im: ofdm.im, N, Ncp: params.Ncp };
+
+      // PAPR from the OFDM signal (exclude CP)
+      let maxP = 0, sumP = 0;
+      for (let i = params.Ncp; i < ofdm.re.length; i++) {
+        const p = ofdm.re[i] * ofdm.re[i] + ofdm.im[i] * ofdm.im[i];
+        if (p > maxP) maxP = p;
+        sumP += p;
+      }
+      const avgP = sumP / N;
+      S.papr = avgP > 0 ? 10 * Math.log10(maxP / avgP) : 0;
+
+      // Eye diagram: generate up to 20 OFDM symbols for overlay
+      const eyeCount = Math.min(20, nOFDMSyms);
+      S.eyeSymbols = [];
+      for (let k = 0; k < eyeCount; k++) {
+        const chunk = txSyms.slice(k * nDataSubcarriers, (k + 1) * nDataSubcarriers);
+        if (chunk.length < nDataSubcarriers) break;
+        const eyeOfdm = ofdmTx(chunk, params);
+        const noisy = chanAWGN(eyeOfdm.re, eyeOfdm.im, S.snrDb);
+        S.eyeSymbols.push({ re: noisy.re, im: noisy.im });
+      }
+    }
+
+    // ════════════════════════════════════════════════════════
+    //  DRAWING
+    // ════════════════════════════════════════════════════════
+
+    function dpr() { return window.devicePixelRatio || 1; }
+
+    function setupCanvas(el) {
+      const rect = el.getBoundingClientRect();
+      const ratio = dpr();
+      el.width = rect.width * ratio;
+      el.height = rect.height * ratio;
+      const ctx = el.getContext('2d');
+      ctx.scale(ratio, ratio);
+      return { ctx, W: rect.width, H: rect.height };
+    }
+
+    function clearCanvas(ctx, W, H) {
+      ctx.fillStyle = '#040d1a';
+      ctx.fillRect(0, 0, W, H);
+    }
+
+    // Draw grid lines
+    function drawGrid(ctx, W, H, nx, ny, color = 'rgba(21,45,72,0.8)') {
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 0.5;
+      for (let i = 1; i < nx; i++) { const x = W * i / nx; ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+      for (let i = 1; i < ny; i++) { const y = H * i / ny; ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+    }
+
+    // ── CONSTELLATION ──
+    function drawConstellation() {
+      const el = document.getElementById('cvConst');
+      const { ctx, W, H } = setupCanvas(el);
+      clearCanvas(ctx, W, H);
+
+      const S = STATE;
+      const mod = buildMod(S.mod);
+      const pts = mod.points;
+      const M = mod.M;
+
+      // Determine scale from constellation extents
+      let maxAbs = 0;
+      for (const p of pts) maxAbs = Math.max(maxAbs, Math.abs(p.I), Math.abs(p.Q));
+      maxAbs = maxAbs * 1.35 + 0.1;
+
+      const cx = W / 2, cy = H / 2;
+      const scale = Math.min(W, H) / 2 / maxAbs;
+
+      function toCanvas(I, Q) { return [cx + I * scale, cy - Q * scale]; }
+
+      // Grid
+      drawGrid(ctx, W, H, 8, 8);
+
+      // Axes
+      ctx.strokeStyle = 'rgba(100,160,200,0.4)';
+      ctx.lineWidth = 0.8;
+      ctx.beginPath(); ctx.moveTo(0, cy); ctx.lineTo(W, cy); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(cx, 0); ctx.lineTo(cx, H); ctx.stroke();
+
+      // Axis labels
+      ctx.fillStyle = 'rgba(100,160,200,0.5)';
+      ctx.font = '10px monospace';
+      ctx.fillText('I →', W - 24, cy - 6);
+      ctx.fillText('Q', cx + 5, 12);
+
+      // Draw ideal constellation points
+      const showAll = M <= 4096;
+      const dotR = M <= 16 ? 5 : M <= 256 ? 3.5 : M <= 1024 ? 2 : M <= 4096 ? 1.5 : 1;
+
+      if (showAll) {
+        if (M <= 64) {
+          // Small constellation: individual colors per point (looks nice, M is small)
+          const colors = generateColors(M);
+          for (let i = 0; i < pts.length; i++) {
+            const [x, y] = toCanvas(pts[i].I, pts[i].Q);
+            ctx.beginPath();
+            ctx.arc(x, y, dotR, 0, Math.PI * 2);
+            ctx.fillStyle = colors[i % colors.length];
+            ctx.fill();
+            if (M <= 16) {
+              ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+              ctx.lineWidth = 0.5;
+              ctx.stroke();
+            }
+          }
+          // Bit labels for BPSK / QPSK / 8-PSK / 16-QAM
+          if (M <= 16) {
+            ctx.font = '8px monospace';
+            for (const p of pts) {
+              const [x, y] = toCanvas(p.I, p.Q);
+              const label = p.sym.toString(2).padStart(mod.bps, '0');
+              ctx.fillStyle = 'rgba(200,220,255,0.7)';
+              ctx.fillText(label, x + 5, y - 5);
+            }
+          }
+        } else {
+          // Large constellation (64+): single-batch draw — one path, one fill = much faster
+          ctx.fillStyle = 'rgba(0,180,220,0.55)';
+          ctx.beginPath();
+          for (const p of pts) {
+            const [x, y] = toCanvas(p.I, p.Q);
+            ctx.moveTo(x + dotR, y);
+            ctx.arc(x, y, dotR, 0, Math.PI * 2);
+          }
+          ctx.fill();
+        }
+      } else {
+        // For very large constellations, draw a subtle grid representation
+        const L = Math.round(Math.sqrt(M));
+        const qamSc = mod.qamScale || 1;
+        ctx.strokeStyle = 'rgba(0,212,255,0.06)';
+        ctx.lineWidth = 0.3;
+        // Draw gridlines at constellation positions
+        for (let i = 0; i < L; i++) {
+          const amp = (2 * i - (L - 1)) / qamSc;
+          const [lx1,] = toCanvas(-maxAbs * 0.95, amp);
+          const [lx2,] = toCanvas(maxAbs * 0.95, amp);
+          const [, ly] = toCanvas(0, amp);
+          ctx.beginPath(); ctx.moveTo(0, ly); ctx.lineTo(W, ly); ctx.stroke();
+          const [vx,] = toCanvas(amp, 0);
+          const [, vy1] = toCanvas(amp, -maxAbs * 0.95);
+          const [, vy2] = toCanvas(amp, maxAbs * 0.95);
+          ctx.beginPath(); ctx.moveTo(vx, 0); ctx.lineTo(vx, H); ctx.stroke();
+        }
+      }
+
+      // Draw received scatter — error-colored if enabled
+      if (S.rxSyms.length > 0) {
+        const useErr = SHOW_ERRORS && S.rxCorrect && S.rxCorrect.length === S.rxSyms.length;
+        const r = M <= 64 ? 2 : 1.5;
+        if (useErr) {
+          // RED batch: symbol errors
+          ctx.beginPath();
+          for (let i = 0; i < S.rxSyms.length; i++) {
+            if (!S.rxCorrect[i]) {
+              const [x, y] = toCanvas(S.rxSyms[i].I, S.rxSyms[i].Q);
+              ctx.moveTo(x + r, y); ctx.arc(x, y, r, 0, Math.PI * 2);
+            }
+          }
+          ctx.fillStyle = 'rgba(239,68,68,0.85)';
+          ctx.fill();
+          // GREEN batch: correct symbols
+          ctx.beginPath();
+          for (let i = 0; i < S.rxSyms.length; i++) {
+            if (S.rxCorrect[i]) {
+              const [x, y] = toCanvas(S.rxSyms[i].I, S.rxSyms[i].Q);
+              ctx.moveTo(x + r, y); ctx.arc(x, y, r, 0, Math.PI * 2);
+            }
+          }
+          ctx.fillStyle = 'rgba(16,185,129,0.65)';
+          ctx.fill();
+          // Error count overlay
+          const errCount = Array.from(S.rxCorrect).filter(v => !v).length;
+          const pct = (errCount / S.rxSyms.length * 100).toFixed(1);
+          ctx.font = '9px monospace';
+          ctx.fillStyle = errCount > 0 ? 'rgba(239,68,68,0.9)' : 'rgba(16,185,129,0.9)';
+          ctx.fillText(`${errCount} sym errors (${pct}%)`, 8, 34);
+        } else {
+          // Plain cyan batch
+          ctx.beginPath();
+          for (const rx of S.rxSyms) {
+            const [x, y] = toCanvas(rx.I, rx.Q);
+            ctx.moveTo(x + r, y); ctx.arc(x, y, r, 0, Math.PI * 2);
+          }
+          ctx.fillStyle = 'rgba(0,212,255,0.65)';
+          ctx.fill();
+        }
+      }
+
+      // Noise sigma circle (1σ radius around origin to show noise spread)
+      if (!isNaN(S.snrDb)) {
+        const sigma = Math.sqrt(0.5 / Math.pow(10, S.snrDb / 10));
+        const sr = sigma * scale;
+        if (sr > 2 && sr < Math.min(W, H) * 0.4) {
+          ctx.beginPath(); ctx.arc(cx, cy, sr, 0, Math.PI * 2);
+          ctx.strokeStyle = 'rgba(245,158,11,0.25)'; ctx.lineWidth = 1; ctx.setLineDash([3, 3]); ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.fillStyle = 'rgba(245,158,11,0.4)'; ctx.font = '8px monospace';
+          ctx.fillText('1σ noise', cx + sr * 0.7, cy - sr * 0.7);
+        }
+      }
+
+      // SNR & mod label
+      ctx.fillStyle = 'rgba(0,212,255,0.7)';
+      ctx.font = 'bold 11px monospace';
+      ctx.fillText(S.mod, 8, H - 8);
+      ctx.fillStyle = 'rgba(100,160,200,0.5)';
+      ctx.font = '10px monospace';
+      ctx.fillText(`SNR ${S.snrDb.toFixed(1)} dB`, W - 90, H - 8);
+
+      // BER overlay
+      if (!isNaN(S.berSim)) {
+        const ber = S.berSim;
+        const color = ber < 1e-4 ? '#10b981' : ber < 1e-2 ? '#f59e0b' : '#ef4444';
+        ctx.fillStyle = color;
+        ctx.font = 'bold 11px monospace';
+        ctx.fillText(`BER: ${formatBER(ber)}`, 8, 20);
+      }
+    }
+
+    // ── SPECTRUM ──
+    function drawSpectrum() {
+      const el = document.getElementById('cvSpec');
+      const { ctx, W, H } = setupCanvas(el);
+      clearCanvas(ctx, W, H);
+
+      const S = STATE;
+      if (!S.ofdmFreRe) return;
+
+      const N = S.ofdmFreRe.length;
+      const params = ofdmParams(N, S.cpRatio);
+      const { Nguard } = params;
+
+      const padT = 24, padB = 28, padL = 36, padR = 8;
+      const iW = W - padL - padR;
+      const iH = H - padT - padB;
+
+      // Compute magnitude for each subcarrier
+      const mags = new Float64Array(N);
+      let maxMag = 0;
+      for (let k = 0; k < N; k++) {
+        mags[k] = Math.sqrt(S.ofdmFreRe[k] ** 2 + S.ofdmFreIm[k] ** 2);
+        if (mags[k] > maxMag) maxMag = mags[k];
+      }
+      if (maxMag < 1e-10) maxMag = 1;
+
+      // Grid
+      drawGrid(ctx, W, H, 8, 4, 'rgba(21,45,72,0.6)');
+
+      // Y-axis label
+      ctx.fillStyle = 'rgba(100,160,200,0.5)';
+      ctx.font = '9px monospace';
+      ctx.save(); ctx.translate(9, padT + iH / 2); ctx.rotate(-Math.PI / 2); ctx.fillText('Amplitude', -24, 0); ctx.restore();
+
+      // Draw bars
+      const barW = iW / N;
+      for (let k = 0; k < N; k++) {
+        // Map FFT index: 0..N/2 → 0..+, N/2+1..N-1 → -..-
+        // Rearrange to show negative frequencies on left
+        const kdisp = (k < N / 2) ? k + N / 2 : k - N / 2; // frequency-centered display
+        const x = padL + kdisp * barW;
+        const barH = (mags[k] / maxMag) * iH * 0.92;
+        const y = padT + iH - barH;
+
+        let color;
+        if (kdisp < N / 2 - N / 2 + Nguard || kdisp >= N / 2 + N / 2 - Nguard) {
+          color = 'rgba(100,130,160,0.3)'; // guard band
+        } else if (k === 0 || k === N / 2) {
+          color = 'rgba(100,130,160,0.3)'; // DC null
+        } else {
+          // Data subcarrier — color by quadrant
+          const rel = kdisp / N;
+          if (rel < 0.25) color = 'rgba(0,212,255,0.8)';
+          else if (rel < 0.5) color = 'rgba(124,58,237,0.8)';
+          else if (rel < 0.75) color = 'rgba(124,58,237,0.8)';
+          else color = 'rgba(0,212,255,0.8)';
+        }
+
+        ctx.fillStyle = color;
+        ctx.fillRect(x, y, Math.max(1, barW - 0.5), barH);
+      }
+
+      // Frequency axis
+      ctx.strokeStyle = 'rgba(100,160,200,0.3)';
+      ctx.lineWidth = 0.5;
+      ctx.beginPath(); ctx.moveTo(padL, padT + iH); ctx.lineTo(W - padR, padT + iH); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(padL, padT); ctx.lineTo(padL, padT + iH); ctx.stroke();
+
+      // x-axis labels
+      ctx.fillStyle = 'rgba(100,160,200,0.6)';
+      ctx.font = '9px monospace';
+      ctx.fillText('-N/2', padL + 2, H - 4);
+      ctx.fillText('0', padL + iW / 2 - 5, H - 4);
+      ctx.fillText('+N/2', W - padR - 28, H - 4);
+      ctx.fillText(`N=${N}`, padL + 4, padT + 12);
+
+      // Legend
+      ctx.fillStyle = 'rgba(0,212,255,0.7)';
+      ctx.fillRect(W - 80, padT + 4, 8, 8);
+      ctx.fillStyle = 'rgba(100,130,160,0.5)';
+      ctx.fillRect(W - 80, padT + 16, 8, 8);
+      ctx.fillStyle = 'rgba(100,160,200,0.6)';
+      ctx.font = '9px monospace';
+      ctx.fillText('Data', W - 68, padT + 12);
+      ctx.fillText('Guard', W - 68, padT + 24);
+
+      // PAPR gauge
+      if (!isNaN(STATE.papr)) {
+        const gx = padL + 4, gy = padT + 4, gw = Math.min(100, iW * 0.35), gh = 7;
+        const norm = Math.min(1, Math.max(0, (STATE.papr - 3) / 15));
+        ctx.fillStyle = 'rgba(10,20,40,0.7)';
+        ctx.fillRect(gx, gy, gw, gh);
+        const c = STATE.papr < 8 ? '#10b981' : STATE.papr < 12 ? '#f59e0b' : '#ef4444';
+        const grad = ctx.createLinearGradient(gx, 0, gx + gw, 0);
+        grad.addColorStop(0, '#10b981'); grad.addColorStop(0.5, '#f59e0b'); grad.addColorStop(1, '#ef4444');
+        ctx.fillStyle = grad;
+        ctx.fillRect(gx, gy, gw * norm, gh);
+        ctx.strokeStyle = 'rgba(100,160,200,0.3)'; ctx.lineWidth = 0.5; ctx.strokeRect(gx, gy, gw, gh);
+        ctx.fillStyle = 'rgba(200,230,255,0.8)'; ctx.font = 'bold 9px monospace';
+        ctx.fillText(`PAPR: ${STATE.papr.toFixed(1)} dB`, gx + gw + 5, gy + 7);
+      }
+    }
+
+    // ── TIME DOMAIN ──
+    function drawTimeDomain() {
+      if (SHOW_EYE) { drawEyeDiagram(); return; }
+      const el = document.getElementById('cvTime');
+      const { ctx, W, H } = setupCanvas(el);
+      clearCanvas(ctx, W, H);
+
+      const S = STATE;
+      if (!S.ofdmTime) return;
+
+      const { re, im, N, Ncp } = S.ofdmTime;
+      const total = re.length;
+
+      const padT = 24, padB = 28, padL = 38, padR = 8;
+      const iW = W - padL - padR;
+      const iH = H - padT - padB;
+
+      // Find max for scaling
+      let mx = 0;
+      for (let i = 0; i < total; i++) mx = Math.max(mx, Math.abs(re[i]), Math.abs(im[i]));
+      if (mx < 1e-10) mx = 1;
+      mx *= 1.15;
+
+      function toY(v) { return padT + iH / 2 - (v / mx) * (iH / 2 * 0.9); }
+      function toX(i) { return padL + (i / total) * iW; }
+
+      // Grid
+      drawGrid(ctx, W, H, 8, 4, 'rgba(21,45,72,0.6)');
+
+      // Zero line
+      ctx.strokeStyle = 'rgba(100,160,200,0.2)';
+      ctx.lineWidth = 0.5;
+      ctx.beginPath(); ctx.moveTo(padL, toY(0)); ctx.lineTo(W - padR, toY(0)); ctx.stroke();
+
+      // CP shading
+      const cpEndX = toX(Ncp);
+      ctx.fillStyle = 'rgba(245,158,11,0.07)';
+      ctx.fillRect(padL, padT, cpEndX - padL, iH);
+      // CP border
+      ctx.strokeStyle = 'rgba(245,158,11,0.4)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath(); ctx.moveTo(cpEndX, padT); ctx.lineTo(cpEndX, padT + iH); ctx.stroke();
+      ctx.setLineDash([]);
+
+      // CP label
+      ctx.fillStyle = 'rgba(245,158,11,0.7)';
+      ctx.font = '9px monospace';
+      ctx.fillText(`CP(${Ncp})`, padL + 2, padT + 10);
+
+      // OFDM symbol body label
+      ctx.fillStyle = 'rgba(0,212,255,0.5)';
+      ctx.fillText(`OFDM Symbol (N=${N})`, cpEndX + 4, padT + 10);
+
+      // Draw imaginary part (faint)
+      ctx.strokeStyle = 'rgba(124,58,237,0.35)';
+      ctx.lineWidth = 0.8;
+      ctx.beginPath();
+      for (let i = 0; i < total; i++) {
+        const x = toX(i), y = toY(im[i]);
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+
+      // Draw real part
+      ctx.strokeStyle = '#00d4ff';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      for (let i = 0; i < total; i++) {
+        const x = toX(i), y = toY(re[i]);
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+
+      // Axes
+      ctx.strokeStyle = 'rgba(100,160,200,0.3)';
+      ctx.lineWidth = 0.5;
+      ctx.beginPath(); ctx.moveTo(padL, padT); ctx.lineTo(padL, padT + iH); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(padL, padT + iH); ctx.lineTo(W - padR, padT + iH); ctx.stroke();
+
+      // Labels
+      ctx.fillStyle = 'rgba(100,160,200,0.6)';
+      ctx.font = '9px monospace';
+      ctx.fillText('0', padL + 2, padT + iH - 2);
+      ctx.fillText(`${total} samples`, W - padR - 68, padT + iH - 2);
+
+      ctx.fillStyle = 'rgba(0,212,255,0.7)';
+      ctx.fillRect(W - 80, padT + 4, 16, 2);
+      ctx.fillStyle = 'rgba(124,58,237,0.6)';
+      ctx.fillRect(W - 80, padT + 14, 16, 2);
+      ctx.fillStyle = 'rgba(100,160,200,0.6)';
+      ctx.font = '9px monospace';
+      ctx.fillText('Real', W - 60, padT + 11);
+      ctx.fillText('Imag', W - 60, padT + 21);
+    }
+
+    // ── EYE DIAGRAM ──
+    function drawEyeDiagram() {
+      const el = document.getElementById('cvTime');
+      const { ctx, W, H } = setupCanvas(el);
+      clearCanvas(ctx, W, H);
+      const S = STATE;
+      if (!S.eyeSymbols || S.eyeSymbols.length === 0) return;
+
+      const padT = 24, padB = 24, padL = 38, padR = 8;
+      const iW = W - padL - padR, iH = H - padT - padB;
+      const N = S.ofdmTime.N, Ncp = S.ofdmTime.Ncp;
+      const symLen = N + Ncp;
+
+      let mx = 0;
+      for (const sym of S.eyeSymbols) for (let i = 0; i < symLen; i++) mx = Math.max(mx, Math.abs(sym.re[i] || 0));
+      if (mx < 1e-10) mx = 1; mx *= 1.2;
+
+      function toY(v) { return padT + iH / 2 - (v / mx) * (iH / 2 * 0.88); }
+      function toX(i) { return padL + (i / (symLen - 1)) * iW; }
+
+      drawGrid(ctx, W, H, 8, 4, 'rgba(21,45,72,0.5)');
+      ctx.strokeStyle = 'rgba(100,160,200,0.15)'; ctx.lineWidth = 0.5;
+      ctx.beginPath(); ctx.moveTo(padL, toY(0)); ctx.lineTo(W - padR, toY(0)); ctx.stroke();
+
+      // Persistence effect: draw each overlaid symbol with gradient color
+      for (let si = 0; si < S.eyeSymbols.length; si++) {
+        const sym = S.eyeSymbols[si];
+        const hue = 180 + (si / S.eyeSymbols.length) * 100;
+        ctx.strokeStyle = `hsla(${hue},90%,65%,0.55)`;
+        ctx.lineWidth = 0.9;
+        ctx.beginPath();
+        for (let i = 0; i < symLen && i < sym.re.length; i++) {
+          const x = toX(i), y = toY(sym.re[i]);
+          if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      }
+
+      // CP divider
+      const cpX = toX(Ncp);
+      ctx.strokeStyle = 'rgba(245,158,11,0.5)'; ctx.lineWidth = 1; ctx.setLineDash([3, 3]);
+      ctx.beginPath(); ctx.moveTo(cpX, padT); ctx.lineTo(cpX, padT + iH); ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Axes
+      ctx.strokeStyle = 'rgba(100,160,200,0.3)'; ctx.lineWidth = 0.5;
+      ctx.beginPath(); ctx.moveTo(padL, padT); ctx.lineTo(padL, padT + iH); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(padL, padT + iH); ctx.lineTo(W - padR, padT + iH); ctx.stroke();
+
+      ctx.fillStyle = 'rgba(245,158,11,0.7)'; ctx.font = '9px monospace';
+      ctx.fillText('CP', padL + 3, padT + 11);
+      ctx.fillStyle = 'rgba(100,160,200,0.5)'; ctx.font = '9px monospace';
+      ctx.fillText(`Eye Diagram  ·  ${S.eyeSymbols.length} overlaid OFDM symbols`, padL + 4, H - 6);
+
+      // "Eye opening" annotation
+      ctx.fillStyle = 'rgba(0,212,255,0.6)'; ctx.font = 'bold 10px monospace';
+      const midX = toX(Ncp + N / 2);
+      ctx.fillText('←eye→', midX - 20, padT + 14);
+    }
+
+    // ── BER CURVE ──
+    function drawBERCurve() {
+      const el = document.getElementById('cvBER');
+      const { ctx, W, H } = setupCanvas(el);
+      clearCanvas(ctx, W, H);
+
+      const S = STATE;
+      const padT = 18, padB = 30, padL = 48, padR = 18;
+      const iW = W - padL - padR;
+      const iH = H - padT - padB;
+
+      const snrMin = -5, snrMax = 40;
+      const berMin = 1e-7, berMax = 0.6;
+
+      function toX(snr) { return padL + (snr - snrMin) / (snrMax - snrMin) * iW; }
+      function toY(ber) {
+        const logBer = Math.log10(Math.max(berMin, ber));
+        const logMin = Math.log10(berMin), logMax = Math.log10(berMax);
+        return padT + (1 - (logBer - logMin) / (logMax - logMin)) * iH;
+      }
+
+      // Grid lines
+      ctx.strokeStyle = 'rgba(21,45,72,0.8)';
+      ctx.lineWidth = 0.5;
+      for (let snr = snrMin; snr <= snrMax; snr += 5) {
+        const x = toX(snr);
+        ctx.beginPath(); ctx.moveTo(x, padT); ctx.lineTo(x, padT + iH); ctx.stroke();
+      }
+      for (let e = -7; e <= 0; e++) {
+        const y = toY(Math.pow(10, e));
+        ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(padL + iW, y); ctx.stroke();
+      }
+
+      // All theoretical curves (muted, comparison)
+      const allMods = ['BPSK', 'QPSK', '16QAM', '64QAM', '256QAM', '1024QAM'];
+      const modColors = ['#4ade80', '#22d3ee', '#818cf8', '#fb923c', '#f472b6', '#a78bfa'];
+      const snrVals = [];
+      for (let s = snrMin; s <= snrMax; s += 0.5) snrVals.push(s);
+
+      allMods.forEach((m, mi) => {
+        ctx.strokeStyle = modColors[mi] + '44';
+        ctx.lineWidth = 0.8;
+        ctx.beginPath();
+        let first = true;
+        for (const snr of snrVals) {
+          const ber = theorBER(m, snr);
+          if (ber < berMin || ber > berMax) { first = true; continue; }
+          const x = toX(snr), y = toY(ber);
+          if (first) { ctx.moveTo(x, y); first = false; } else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      });
+
+      // Current modulation theoretical curve (bright, uncoded)
+      ctx.strokeStyle = '#f59e0b';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      let first = true;
+      for (const snr of snrVals) {
+        const ber = theorBER(S.mod, snr);
+        if (ber < berMin || ber > berMax) { first = true; continue; }
+        const x = toX(snr), y = toY(ber);
+        if (first) { ctx.moveTo(x, y); first = false; } else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+
+      // Coded BER curve (when FEC is active)
+      if (S.fec !== 'none') {
+        ctx.strokeStyle = '#10b981';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([6, 3]);
+        ctx.beginPath(); first = true;
+        for (const snr of snrVals) {
+          const ber = codedBER(S.fec, S.mod, snr);
+          if (ber < berMin || ber > berMax) { first = true; continue; }
+          const x = toX(snr), y = toY(ber);
+          if (first) { ctx.moveTo(x, y); first = false; } else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      // Sweep simulated points
+      if (S.berSnr.length > 0) {
+        ctx.strokeStyle = '#00d4ff';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath(); let sf = true;
+        for (let i = 0; i < S.berSnr.length; i++) {
+          const ber = S.berSimArr[i];
+          if (ber <= 0 || ber < berMin) { sf = true; continue; }
+          const x = toX(S.berSnr[i]), y = toY(ber);
+          if (sf) { ctx.moveTo(x, y); sf = false; } else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
+        // Dots
+        ctx.fillStyle = '#00d4ff';
+        for (let i = 0; i < S.berSnr.length; i++) {
+          const ber = S.berSimArr[i];
+          if (ber <= 0 || ber < berMin) continue;
+          const x = toX(S.berSnr[i]), y = toY(ber);
+          ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2); ctx.fill();
+        }
+      }
+
+      // Shannon capacity vertical limit line for current modulation
+      {
+        const mod = buildMod(S.mod);
+        const shannonSNR = 10 * Math.log10(Math.pow(2, mod.bps) - 1);
+        if (shannonSNR > snrMin && shannonSNR < snrMax) {
+          const sx = toX(shannonSNR);
+          ctx.strokeStyle = 'rgba(16,185,129,0.65)';
+          ctx.lineWidth = 1.5; ctx.setLineDash([5, 3]);
+          ctx.beginPath(); ctx.moveTo(sx, padT); ctx.lineTo(sx, padT + iH); ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.fillStyle = 'rgba(16,185,129,0.85)'; ctx.font = 'bold 9px monospace';
+          const lx = sx + 3 < W - 90 ? sx + 3 : sx - 88;
+          ctx.fillText(`Shannon: ${shannonSNR.toFixed(1)}dB`, lx, padT + iH * 0.55);
+        }
+      }
+
+      // Current operating point
+      if (!isNaN(S.berSim) && S.berSim > berMin) {
+        const x = toX(S.snrDb), y = toY(S.berSim);
+        ctx.strokeStyle = '#00d4ff';
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(x, y, 6, 0, Math.PI * 2); ctx.stroke();
+        // Crosshairs
+        ctx.strokeStyle = 'rgba(0,212,255,0.3)';
+        ctx.lineWidth = 0.7; ctx.setLineDash([3, 3]);
+        ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(x, y); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x, padT); ctx.lineTo(x, y); ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      // Axes
+      ctx.strokeStyle = 'rgba(100,160,200,0.4)';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(padL, padT); ctx.lineTo(padL, padT + iH); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(padL, padT + iH); ctx.lineTo(padL + iW, padT + iH); ctx.stroke();
+
+      // X-axis labels
+      ctx.fillStyle = 'rgba(100,160,200,0.7)';
+      ctx.font = '9px monospace';
+      ctx.textAlign = 'center';
+      for (let snr = snrMin; snr <= snrMax; snr += 10) {
+        ctx.fillText(snr, toX(snr), H - 4);
+      }
+      ctx.fillText('Es/N₀ (dB)', padL + iW / 2, H - 4 + 12);
+      ctx.textAlign = 'left';
+
+      // Y-axis labels
+      ctx.fillStyle = 'rgba(100,160,200,0.7)';
+      ctx.font = '9px monospace';
+      for (let e = -6; e <= 0; e += 2) {
+        const y = toY(Math.pow(10, e));
+        ctx.fillText(`1e${e}`, 2, y + 3);
+      }
+      ctx.save(); ctx.translate(11, padT + iH / 2);
+      ctx.rotate(-Math.PI / 2);
+      ctx.fillText('BER', -10, 0);
+      ctx.restore();
+
+      // Legend
+      ctx.font = '9px monospace';
+      ctx.strokeStyle = '#f59e0b';
+      ctx.lineWidth = 2; ctx.setLineDash([]);
+      ctx.beginPath(); ctx.moveTo(padL + 4, padT + 8); ctx.lineTo(padL + 20, padT + 8); ctx.stroke();
+      ctx.fillStyle = '#f59e0b'; ctx.fillText('Theory', padL + 23, padT + 12);
+      ctx.strokeStyle = '#00d4ff';
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(padL + 4, padT + 20); ctx.lineTo(padL + 20, padT + 20); ctx.stroke();
+      ctx.fillStyle = '#00d4ff'; ctx.fillText('Simulated', padL + 23, padT + 24);
+      if (S.fec !== 'none') {
+        ctx.strokeStyle = '#10b981'; ctx.setLineDash([6, 3]);
+        ctx.beginPath(); ctx.moveTo(padL + 4, padT + 32); ctx.lineTo(padL + 20, padT + 32); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = '#10b981';
+        ctx.fillText(S.fec === 'rep3' ? 'Rep-1/3' : 'Conv-1/2', padL + 23, padT + 36);
+      } else {
+        ctx.setLineDash([]);
+      }
+
+      // Mod names on right side (legend for comparison curves)
+      if (W > 350) {
+        ctx.font = '8px monospace';
+        allMods.forEach((m, mi) => {
+          const snr = theorBER(m, snrMax) < 1e-5 ? snrMax - 3 : snrMax - 8;
+          const ber = theorBER(m, snrMax - 2);
+          if (ber < berMin || ber > berMax) return;
+          const y = toY(ber) + mi * 2 - 4;
+          if (y < padT || y > padT + iH) return;
+          ctx.fillStyle = modColors[mi] + '88';
+          ctx.fillText(m, W - padR - 30, y);
+        });
+      }
+    }
+
+    // ════════════════════════════════════════════════════════
+    //  HELPERS
+    // ════════════════════════════════════════════════════════
+
+    function generateColors(n) {
+      const colors = [];
+      for (let i = 0; i < Math.min(n, 256); i++) {
+        const h = (i / Math.min(n, 256)) * 300 + 180;
+        colors.push(`hsl(${h},90%,60%)`);
+      }
+      return colors;
+    }
+
+    function formatBER(ber) {
+      if (ber === 0) return '0';
+      if (ber < 1e-6) return `<1e-6`;
+      if (ber < 0.01) return ber.toExponential(2);
+      return ber.toFixed(4);
+    }
+
+    // ── EXPORT CANVAS ──
+    function exportCanvas(id) {
+      const el = document.getElementById(id);
+      const link = document.createElement('a');
+      link.download = `ofdm_${id}_${STATE.mod}_${STATE.snrDb}dB.png`;
+      link.href = el.toDataURL('image/png');
+      link.click();
+    }
+
+    // ── ERROR COLOR TOGGLE ──
+    let SHOW_ERRORS = true;
+    function toggleErrColor() {
+      SHOW_ERRORS = !SHOW_ERRORS;
+      const btn = document.getElementById('btnErrColor');
+      btn.classList.toggle('on', SHOW_ERRORS);
+      btn.textContent = SHOW_ERRORS ? '● Errors' : '○ Errors';
+      drawConstellation();
+    }
+
+    // ── EYE DIAGRAM TOGGLE ──
+    let SHOW_EYE = false;
+    function toggleEye() {
+      SHOW_EYE = !SHOW_EYE;
+      const btn = document.getElementById('btnEye');
+      btn.classList.toggle('eye-on', SHOW_EYE);
+      btn.textContent = SHOW_EYE ? '📡 Time' : '👁 Eye';
+      const titleEl = document.getElementById('timePanelTitle');
+      if (titleEl) titleEl.textContent = SHOW_EYE ? 'Eye Diagram' : 'Time Domain Signal';
+      drawTimeDomain();
+    }
+
+    // ── REQUIRED SNR (binary search) ──
+    function requiredSNR(modName, targetBER) {
+      let lo = -5, hi = 60;
+      for (let i = 0; i < 60; i++) {
+        const mid = (lo + hi) / 2;
+        theorBER(modName, mid) > targetBER ? lo = mid : hi = mid;
+      }
+      return (lo + hi) / 2;
+    }
+
+    // ── MODULATION COMPARISON CHART ──
+    function drawModComparison() {
+      const el = document.getElementById('cvModComp');
+      if (!el) return;
+      const ratio = window.devicePixelRatio || 1;
+      const rect = el.getBoundingClientRect();
+      el.width = rect.width * ratio; el.height = rect.height * ratio;
+      const ctx = el.getContext('2d');
+      ctx.scale(ratio, ratio);
+      const W = rect.width, H = rect.height;
+
+      ctx.fillStyle = '#040d1a'; ctx.fillRect(0, 0, W, H);
+
+      const mods = ['BPSK', 'QPSK', '8PSK', '16QAM', '64QAM', '256QAM', '1024QAM', '4096QAM'];
+      const colors = ['#4ade80', '#22d3ee', '#60a5fa', '#818cf8', '#a78bfa', '#f472b6', '#fb923c', '#facc15'];
+      const snr = STATE.snrDb;
+      const barH = (H - 10) / mods.length;
+      const labelW = 52, valW = 36, barAreaW = W - labelW - valW - 8;
+
+      ctx.font = `${Math.min(10, barH * 0.65)}px monospace`;
+
+      for (let i = 0; i < mods.length; i++) {
+        const ber = theorBER(mods[i], snr);
+        const logBer = Math.log10(Math.max(1e-7, ber));
+        const fill = Math.max(0, Math.min(1, 1 - (logBer + 7) / 7));
+        const y = 5 + i * barH;
+        const bh = barH * 0.72;
+
+        // Background track
+        ctx.fillStyle = 'rgba(21,45,72,0.6)';
+        ctx.fillRect(labelW, y + barH * 0.14, barAreaW, bh);
+
+        // Filled bar
+        const grad = ctx.createLinearGradient(labelW, 0, labelW + barAreaW, 0);
+        grad.addColorStop(0, colors[i] + 'aa');
+        grad.addColorStop(1, colors[i] + '55');
+        ctx.fillStyle = grad;
+        ctx.fillRect(labelW, y + barH * 0.14, barAreaW * fill, bh);
+
+        // Highlight active modulation
+        if (mods[i] === STATE.mod) {
+          ctx.strokeStyle = colors[i];
+          ctx.lineWidth = 1;
+          ctx.strokeRect(labelW, y + barH * 0.14, barAreaW, bh);
+          ctx.fillStyle = colors[i];
+        } else {
+          ctx.fillStyle = 'rgba(180,210,240,0.7)';
+        }
+
+        // Label
+        ctx.fillText(mods[i], 2, y + barH * 0.75);
+
+        // BER value
+        ctx.fillStyle = colors[i];
+        ctx.textAlign = 'right';
+        const berStr = ber < 1e-6 ? '<1e-6' : ber.toExponential(1);
+        ctx.fillText(berStr, W - 2, y + barH * 0.75);
+        ctx.textAlign = 'left';
+      }
+    }
+
+    function updateStats() {
+      const S = STATE;
+      const mod = buildMod(S.mod);
+      const N = FFT_SIZES[S.fftIdx];
+      const params = ofdmParams(N, S.cpRatio);
+      const ebno = S.snrDb - 10 * Math.log10(mod.bps);
+
+      document.getElementById('sMod').textContent = S.mod;
+      document.getElementById('sSnr').textContent = S.snrDb.toFixed(1) + ' dB';
+      document.getElementById('sEbn0').textContent = ebno.toFixed(1) + ' dB';
+
+      const berEl = document.getElementById('sBerSim');
+      if (!isNaN(S.berSim)) {
+        berEl.textContent = formatBER(S.berSim);
+        berEl.className = 'stat-value ' + (S.berSim < 1e-4 ? 'good' : S.berSim < 1e-2 ? 'warn' : 'bad');
+      }
+      document.getElementById('sBerTh').textContent = !isNaN(S.berTh) ? formatBER(S.berTh) : '—';
+      document.getElementById('sErrors').textContent = isNaN(S.numErrors) ? '—' : S.numErrors.toLocaleString();
+      document.getElementById('sBits').textContent = isNaN(S.numBits) ? '—' : S.numBits.toLocaleString();
+
+      const overhead = params.Ncp / (N + params.Ncp);
+      const spEff = (params.Ndata / N) * mod.bps * (1 - overhead);
+      document.getElementById('sSpeff').textContent = spEff.toFixed(2) + ' bit/s/Hz';
+      document.getElementById('sNdata').textContent = params.Ndata;
+
+      // Efficiency box
+      document.getElementById('effText').innerHTML =
+        `FFT: <b>${N}</b> &nbsp; CP: ${params.Ncp} samples (${(overhead * 100).toFixed(0)}% overhead)<br>` +
+        `Data subcarriers: <b>${params.Ndata}</b> &nbsp; Spec. eff.: <b>${spEff.toFixed(2)}</b> bpcu`;
+
+      // PAPR
+      const paprEl = document.getElementById('sPapr');
+      if (!isNaN(S.papr)) {
+        paprEl.textContent = S.papr.toFixed(1) + ' dB';
+        paprEl.className = 'stat-value ' + (S.papr < 8 ? 'good' : S.papr < 12 ? 'warn' : 'bad');
+      }
+
+      // Capacity & Shannon limit
+      if (!isNaN(S.capacity)) {
+        document.getElementById('sCapacity').textContent = S.capacity.toFixed(2) + ' bits/use';
+      }
+      const shannonMin = 10 * Math.log10(Math.pow(2, mod.bps) - 1);
+      document.getElementById('sShannon').textContent = shannonMin.toFixed(1) + ' dB';
+
+      // FEC info box
+      const FEC_INFO = {
+        none: `<span style="color:var(--muted)">No coding — raw BER</span>`,
+        rep3: `Rate <b>1/3</b> repetition code · Each bit sent ×3, majority vote<br><span style="color:var(--amber)">Coding gain ≈ 2–3 dB · 3× bandwidth</span>`,
+        conv: `Rate <b>1/2</b> convolutional code · K=3, d<sub>free</sub>=5<br><span style="color:var(--green)">Coding gain ≈ 4–5 dB · 2× bandwidth · Used in LTE/WiFi</span>`
+      };
+      document.getElementById('fecInfoBox').innerHTML = FEC_INFO[S.fec] || '';
+
+      // 5G NR numerology info
+      const NR_MAP = {
+        16: { mu: '—', scs: '—', bw: 'demo', note: 'Concept only — too small for 5G' },
+        32: { mu: '—', scs: '—', bw: 'demo', note: 'Educational — below 5G minimum' },
+        64: { mu: '0', scs: '15 kHz', bw: '~1 MHz', note: 'Similar to LTE (1.4 MHz mode)' },
+        128: { mu: '0', scs: '15 kHz', bw: '~2 MHz', note: 'LTE 3 MHz / 5G NR sub-6 GHz μ=0' },
+        256: { mu: '1', scs: '30 kHz', bw: '~5 MHz', note: '5G NR μ=1 — most common mmWave' },
+        512: { mu: '2', scs: '60 kHz', bw: '~10 MHz', note: '5G NR μ=2 — FR2 (mmWave) bands' },
+      };
+      const nrEl = document.getElementById('nrInfoBox');
+      const nrTxt = document.getElementById('nrInfoText');
+      const nr = NR_MAP[N];
+      if (nr) {
+        nrEl.style.display = '';
+        nrTxt.innerHTML = `Numerology μ: <b style="color:var(--accent)">${nr.mu}</b> &nbsp; SCS: <b style="color:var(--accent)">${nr.scs}</b><br>`
+          + `Bandwidth: <b style="color:var(--amber)">${nr.bw}</b><br><span style="color:var(--muted)">${nr.note}</span>`;
+      }
+
+      // Adaptive Modulation (AMC) — best modulation for current SNR @ BER < 1e-3
+      const ALL_MODS = ['BPSK', 'QPSK', '8PSK', '16QAM', '64QAM', '256QAM', '1024QAM', '4096QAM'];
+      let bestMod = 'BPSK', bestBps = 1;
+      for (const m of ALL_MODS) {
+        if (theorBER(m, S.snrDb) < 1e-3) { bestMod = m; bestBps = buildMod(m).bps; }
+      }
+      const amcColor = bestMod === S.mod ? 'var(--green)' : 'var(--amber)';
+      document.getElementById('amcBox').innerHTML =
+        `Best mod @ ${S.snrDb.toFixed(0)} dB SNR:<br>`
+        + `<b style="color:${amcColor}">${bestMod}</b> &nbsp; (${bestBps} bits/sym)`
+        + (bestMod !== S.mod ? `<br><span style="color:var(--muted)">Current: ${S.mod} — switch for best throughput</span>` : '<br><span style="color:var(--green)">✓ Optimal for current SNR</span>');
+    }
+
+    function updateModInfo() {
+      const INFO = {
+        'BPSK': { tech: 'GPS, Satellite, Deep Space', year: '1960s', status: 'mb-green', note: 'Most robust. 1 bit/symbol.' },
+        'QPSK': { tech: '4G LTE, DVB-S2, WiFi 4', year: '1970s', status: 'mb-green', note: 'Balanced robustness vs efficiency.' },
+        '8PSK': { tech: 'DVB-S2 (High eff. mode), LTE', year: '1990s', status: 'mb-green', note: '3 bits/symbol on phase only.' },
+        '16QAM': { tech: '4G LTE, WiFi 4, DOCSIS 3.0', year: '1990s', status: 'mb-cyan', note: 'Industry workhorse. Needs decent SNR.' },
+        '64QAM': { tech: 'WiFi 5, LTE-A, DOCSIS 3.1', year: '2000s', status: 'mb-cyan', note: '6 bits/sym. Common in WiFi today.' },
+        '256QAM': { tech: 'WiFi 6, LTE-A Pro, DOCSIS 3.1', year: '2013', status: 'mb-cyan', note: '8 bits/sym. WiFi 6 baseline.' },
+        '1024QAM': { tech: 'WiFi 6E, 5G NR, DOCSIS 3.1', year: '2020', status: 'mb-amber', note: 'State of the art. Very clean channel needed.' },
+        '4096QAM': { tech: 'WiFi 7 (802.11be), 5G-Advanced', year: '2024', status: 'mb-amber', note: 'Bleeding edge. 12 bits/sym!' },
+        '16384QAM': { tech: '6G Research / Proposed', year: '2030+', status: 'mb-purple', note: 'Future standard. Extreme SNR required.' },
+        '65536QAM': { tech: 'Theoretical / Research only', year: 'TBD', status: 'mb-red', note: '16 bits/sym. Currently impractical.' },
+      };
+      const mod = buildMod(STATE.mod);
+      const info = INFO[STATE.mod] || {};
+      const req3 = requiredSNR(STATE.mod, 1e-3).toFixed(1);
+      const req5 = requiredSNR(STATE.mod, 1e-5).toFixed(1);
+      const shLim = (10 * Math.log10(Math.pow(2, mod.bps) - 1)).toFixed(1);
+      document.getElementById('modInfoBox').innerHTML = `
+    <div class="title">${STATE.mod} — ${mod.bps} bits/symbol</div>
+    <div style="margin-top:5px">
+      <span class="mod-badge ${info.status || 'mb-cyan'}">${info.year || '—'}</span>
+      <span class="tech" style="margin-left:6px">${info.tech || '—'}</span>
+    </div>
+    <div style="margin-top:4px;color:var(--text)">${info.note || ''}</div>
+    <div style="margin-top:5px;border-top:1px solid var(--border);padding-top:4px;font-size:10px">
+      Req. SNR: <b style="color:var(--amber)">${req3} dB</b> (BER 10⁻³) &nbsp;
+               <b style="color:var(--amber)">${req5} dB</b> (BER 10⁻⁵)<br>
+      Shannon min: <b style="color:var(--green)">${shLim} dB</b>
+    </div>`;
+    }
+
+    // ════════════════════════════════════════════════════════
+    //  IMAGE TRANSMISSION DEMO
+    // ════════════════════════════════════════════════════════
+
+    const IMG_SZ = 32; // 32x32 pixel test image
+
+    // Generate a smiley face image programmatically
+    function makeTestImage() {
+      const img = new Uint8Array(IMG_SZ * IMG_SZ);
+      const c = IMG_SZ / 2 - 0.5;
+      const R = IMG_SZ / 2 - 1.5;
+      for (let y = 0; y < IMG_SZ; y++) {
+        for (let x = 0; x < IMG_SZ; x++) {
+          const dx = x - c, dy = y - c, d = Math.sqrt(dx * dx + dy * dy);
+          let v = 30; // dark background
+          if (d > R - 2 && d < R) v = 220;          // circle ring
+          if (Math.abs(dx + 6) < 2.5 && Math.abs(dy + 5) < 3) v = 220; // left eye
+          if (Math.abs(dx - 6) < 2.5 && Math.abs(dy + 5) < 3) v = 220; // right eye
+          if (dy > 2) { // smile area
+            const sd = Math.sqrt(dx * dx + (dy - 4) * (dy - 4));
+            if (sd > 6 && sd < 9 && dx > -7 && dx < 7) v = 220;
+          }
+          img[y * IMG_SZ + x] = v;
+        }
+      }
+      return img;
+    }
+
+    const TX_IMAGE = makeTestImage();
+
+    function runImageDemo() {
+      const S = STATE;
+      const pixels = IMG_SZ * IMG_SZ;
+      // Convert pixels to bits (8 bits per pixel, grayscale)
+      const txBits = new Uint8Array(pixels * 8);
+      for (let p = 0; p < pixels; p++)
+        for (let b = 0; b < 8; b++)
+          txBits[p * 8 + b] = (TX_IMAGE[p] >> (7 - b)) & 1;
+
+      // Use QPSK for image (robust, educational contrast is still clear)
+      const modName = 'QPSK';
+      const txSyms = modulate(txBits, modName);
+      const rxSyms = txSyms.map(s => addSymbolNoise(s.I, s.Q, S.snrDb, S.channel));
+      const rxBits = demodulate(rxSyms, modName);
+
+      // Reconstruct received pixels
+      const rxImg = new Uint8Array(pixels);
+      for (let p = 0; p < pixels; p++) {
+        let v = 0;
+        for (let b = 0; b < 8; b++) if (rxBits[p * 8 + b]) v |= (1 << (7 - b));
+        rxImg[p] = v;
+      }
+
+      let errs = 0;
+      for (let p = 0; p < pixels; p++) if (Math.abs(rxImg[p] - TX_IMAGE[p]) > 15) errs++;
+
+      drawImageDemo(rxImg);
+      const pct = (errs / pixels * 100).toFixed(1);
+      const ber = (errs / (pixels * 8)).toExponential(2);
+      document.getElementById('imgStats').innerHTML =
+        `<span style="color:${errs === 0 ? 'var(--green)' : errs < pixels * 0.05 ? 'var(--amber)' : 'var(--red)'}">` +
+        `${errs} pixel errors (${pct}%)</span> — QPSK @ ${S.snrDb.toFixed(1)} dB`;
+    }
+
+    function drawImageDemo(rxImg) {
+      const el = document.getElementById('cvImg');
+      if (!el) return;
+      const R = window.devicePixelRatio || 1;
+      const rect = el.getBoundingClientRect();
+      el.width = rect.width * R; el.height = rect.height * R;
+      const ctx = el.getContext('2d');
+      ctx.scale(R, R);
+      const W = rect.width, H = rect.height;
+      ctx.fillStyle = '#040d1a'; ctx.fillRect(0, 0, W, H);
+
+      const half = W / 2 - 3;
+      const pw = half / IMG_SZ, ph = H / IMG_SZ;
+
+      // Original image (left)
+      for (let y = 0; y < IMG_SZ; y++) for (let x = 0; x < IMG_SZ; x++) {
+        const v = TX_IMAGE[y * IMG_SZ + x];
+        ctx.fillStyle = `rgb(${v},${v},${v})`;
+        ctx.fillRect(x * pw, y * ph, pw + 0.5, ph + 0.5);
+      }
+      ctx.fillStyle = 'rgba(0,212,255,0.15)'; ctx.fillRect(0, 0, half, 10);
+      ctx.fillStyle = 'rgba(0,212,255,0.7)'; ctx.font = '7px monospace';
+      ctx.fillText('TX (Original)', 2, 8);
+
+      // Divider
+      ctx.fillStyle = 'rgba(0,212,255,0.3)'; ctx.fillRect(half + 1, 0, 2, H);
+
+      // Received image (right)
+      if (rxImg) {
+        const ox = half + 4;
+        for (let y = 0; y < IMG_SZ; y++) for (let x = 0; x < IMG_SZ; x++) {
+          const v = rxImg[y * IMG_SZ + x], orig = TX_IMAGE[y * IMG_SZ + x];
+          if (Math.abs(v - orig) > 20) ctx.fillStyle = `rgb(200,40,40)`;
+          else ctx.fillStyle = `rgb(${v},${v},${v})`;
+          ctx.fillRect(ox + x * pw, y * ph, pw + 0.5, ph + 0.5);
+        }
+        ctx.fillStyle = 'rgba(239,68,68,0.15)'; ctx.fillRect(half + 4, 0, half, 10);
+        ctx.fillStyle = 'rgba(239,68,68,0.7)'; ctx.font = '7px monospace';
+        ctx.fillText('RX (Received)', half + 6, 8);
+      }
+    }
+
+    // ════════════════════════════════════════════════════════
+    //  EDUCATIONAL DEMO MODAL
+    // ════════════════════════════════════════════════════════
+
+    function openDemo(type) {
+      const modal = document.getElementById('demoModal');
+      modal.classList.add('open');
+      if (type === 'ortho') drawOrthoDemo();
+      if (type === 'cp') drawCPDemo();
+      if (type === 'channel') drawChannelDemo();
+      if (type === 'cfo')     drawCFODemo();
+      if (type === 'fec')     drawFECDemo();
+      if (type === 'fourier') drawFourierPlayground();
+    }
+    function closeDemo() {
+      document.getElementById('demoModal').classList.remove('open');
+      ftCleanup();
+    }
+
+    // ── ORTHOGONALITY VISUALIZER ──────────────────────────
+    function drawOrthoDemo() {
+      document.getElementById('demoTitle').textContent = 'OFDM Orthogonality Principle';
+      document.getElementById('demoDesc').textContent =
+        'Each subcarrier completes an integer number of cycles over the symbol period T. '
+        + 'This makes all subcarriers mathematically orthogonal — they don\'t interfere even though they overlap in frequency.';
+
+      const el = document.getElementById('cvDemo');
+      const R = window.devicePixelRatio || 1;
+      const rect = el.getBoundingClientRect();
+      el.width = rect.width * R; el.height = rect.height * R;
+      const ctx = el.getContext('2d'); ctx.scale(R, R);
+      const W = rect.width, H = rect.height;
+      ctx.fillStyle = '#040d1a'; ctx.fillRect(0, 0, W, H);
+
+      const COLORS = ['#ef4444', '#f59e0b', '#10b981', '#00d4ff', '#7c3aed', '#f472b6', '#60a5fa', '#4ade80'];
+      const N_CARR = 8;
+      const padL = 60, padR = 30, padT = 30;
+      const topH = H * 0.62;   // top section: individual subcarriers
+      const botH = H - topH; // bottom section: composite signal
+
+      // ── Top: individual subcarriers ──
+      ctx.fillStyle = 'rgba(0,212,255,0.8)'; ctx.font = 'bold 11px monospace';
+      ctx.fillText('Individual OFDM Subcarriers  (each = integer cycles over symbol period T)', 6, padT - 8);
+
+      const rowH = (topH - padT) / N_CARR;
+      for (let k = 1; k <= N_CARR; k++) {
+        const yMid = padT + (k - 0.5) * rowH;
+        const amp = rowH * 0.42;
+        const col = COLORS[k - 1];
+
+        // zero line
+        ctx.strokeStyle = 'rgba(255,255,255,0.06)'; ctx.lineWidth = 0.5;
+        ctx.beginPath(); ctx.moveTo(padL, yMid); ctx.lineTo(W - padR, yMid); ctx.stroke();
+
+        // label
+        ctx.fillStyle = col; ctx.font = 'bold 9px monospace';
+        ctx.fillText(`f${k}  (${k} cycle${k > 1 ? 's' : ''})`, 2, yMid + 3);
+
+        // sinusoid
+        ctx.strokeStyle = col; ctx.lineWidth = 1.3;
+        ctx.beginPath();
+        for (let px = 0; px <= W - padL - padR; px++) {
+          const t = px / (W - padL - padR);
+          const y = yMid - Math.cos(2 * Math.PI * k * t) * amp;
+          px === 0 ? ctx.moveTo(padL + px, y) : ctx.lineTo(padL + px, y);
+        }
+        ctx.stroke();
+
+        // cycle markers (dots at t=0, t=T/k, t=2T/k, ...)
+        ctx.fillStyle = col;
+        for (let c = 0; c <= k; c++) {
+          const px = (c / k) * (W - padL - padR);
+          ctx.beginPath(); ctx.arc(padL + px, yMid, 2.5, 0, Math.PI * 2); ctx.fill();
+        }
+      }
+
+      // ── Divider ──
+      ctx.strokeStyle = 'rgba(0,212,255,0.2)'; ctx.lineWidth = 1; ctx.setLineDash([6, 4]);
+      ctx.beginPath(); ctx.moveTo(0, topH); ctx.lineTo(W, topH); ctx.stroke();
+      ctx.setLineDash([]);
+
+      // ── Bottom: composite OFDM symbol ──
+      const botPadT = topH + 22;
+      ctx.fillStyle = 'rgba(0,212,255,0.8)'; ctx.font = 'bold 11px monospace';
+      ctx.fillText('Composite OFDM Symbol  =  sum of all subcarriers → complex multi-carrier waveform', 6, botPadT - 6);
+
+      const sumAmp = botH * 0.38;
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      for (let px = 0; px <= W - padL - padR; px++) {
+        const t = px / (W - padL - padR);
+        let s = 0;
+        for (let k = 1; k <= N_CARR; k++) s += Math.cos(2 * Math.PI * k * t) / N_CARR;
+        const y = botPadT + botH * 0.45 - s * sumAmp;
+        px === 0 ? ctx.moveTo(padL + px, y) : ctx.lineTo(padL + px, y);
+      }
+      ctx.stroke();
+
+      // t=0 and t=T markers
+      ctx.strokeStyle = 'rgba(100,160,200,0.3)'; ctx.lineWidth = 0.7;
+      ctx.beginPath(); ctx.moveTo(padL, topH + 2); ctx.lineTo(padL, H - 8); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(W - padR, topH + 2); ctx.lineTo(W - padR, H - 8); ctx.stroke();
+      ctx.fillStyle = 'rgba(100,160,200,0.7)'; ctx.font = '10px monospace';
+      ctx.fillText('t = 0', padL - 4, H - 2); ctx.fillText('t = T', W - padR - 20, H - 2);
+
+      // Orthogonality formula
+      ctx.fillStyle = 'rgba(16,185,129,0.9)'; ctx.font = 'bold 11px monospace';
+      ctx.fillText('Orthogonality:  ∫₀ᵀ  fₖ(t) · fₘ(t) dt  =  0   when  k ≠ m', 6, H - 14);
+    }
+
+    // ── CYCLIC PREFIX / ISI DEMO ───────────────────────────
+    function drawCPDemo() {
+      document.getElementById('demoTitle').textContent = 'Cyclic Prefix & ISI Prevention';
+      document.getElementById('demoDesc').textContent =
+        'The cyclic prefix (CP) is a copy of the tail of the OFDM symbol prepended to its start. '
+        + 'In a multipath channel, delayed echoes corrupt the start of the received symbol — the CP acts as a "guard time" that absorbs the echo. '
+        + 'Without CP, the echo bleeds into the FFT window causing Inter-Symbol Interference (ISI).';
+
+      const el = document.getElementById('cvDemo');
+      const R = window.devicePixelRatio || 1;
+      const rect = el.getBoundingClientRect();
+      el.width = rect.width * R; el.height = rect.height * R;
+      const ctx = el.getContext('2d'); ctx.scale(R, R);
+      const W = rect.width, H = rect.height;
+      ctx.fillStyle = '#040d1a'; ctx.fillRect(0, 0, W, H);
+
+      const N = FFT_SIZES[STATE.fftIdx];
+      const Ncp = Math.round(N * STATE.cpRatio);
+      const par = ofdmParams(N, STATE.cpRatio);
+      const mod = buildMod(STATE.mod);
+      const bits = new Uint8Array(par.Ndata * mod.bps);
+      for (let i = 0; i < bits.length; i++) bits[i] = Math.random() < 0.5 ? 1 : 0;
+      const ofdm = ofdmTx(modulate(bits, STATE.mod), par);
+
+      // Simulate multipath echo (delay = 70% of CP)
+      const delay = Math.max(1, Math.round(Ncp * 0.7));
+      const total = ofdm.re.length;
+      const echo = new Float64Array(total + delay);
+      for (let i = 0; i < total; i++) { echo[i] += ofdm.re[i]; echo[i + delay] += ofdm.re[i] * 0.5; }
+
+      const rows = [
+        { label: '① Transmitted\n   symbol', sig: ofdm.re, col: '#00d4ff', note: `CP=${Ncp} + Data=${N} samples` },
+        { label: '② Multipath\n   echo (×0.5)', sig: echo, col: '#f59e0b', note: `Arrives ${delay} samples late` },
+        { label: '③ WITH CP:\n   FFT window', sig: Array.from({ length: N }, (_, i) => echo[Ncp + i] || 0), col: '#10b981', note: 'CP discarded → echo gone from FFT window → clean!' },
+        { label: '④ WITHOUT CP:\n   FFT window', sig: Array.from({ length: N }, (_, i) => echo[i] || 0), col: '#ef4444', note: 'Echo bleeds in → ISI corrupts every subcarrier!' },
+      ];
+
+      const rowH = H / rows.length;
+      const padL = 120, padR = 20;
+      const iW = W - padL - padR;
+
+      rows.forEach((row, si) => {
+        const y0 = si * rowH;
+        const yMid = y0 + rowH / 2;
+        const len = row.sig.length;
+        let mx = 0; for (let v of row.sig) mx = Math.max(mx, Math.abs(v));
+        if (mx < 1e-10) mx = 1;
+
+        // Background tint
+        ctx.fillStyle = row.col + '18'; ctx.fillRect(0, y0, W, rowH - 1);
+
+        // Label
+        ctx.fillStyle = row.col; ctx.font = 'bold 10px monospace';
+        row.label.split('\n').forEach((l, li) => ctx.fillText(l, 4, y0 + 14 + li * 13));
+        ctx.fillStyle = 'rgba(150,180,210,0.55)'; ctx.font = '8px monospace';
+        ctx.fillText(row.note, 4, y0 + rowH - 6);
+
+        // Waveform
+        ctx.strokeStyle = row.col; ctx.lineWidth = 1.1;
+        ctx.beginPath();
+        const dispLen = Math.min(len, N + Ncp + delay + 5);
+        for (let i = 0; i < dispLen; i++) {
+          const x = padL + (i / dispLen) * iW;
+          const y = yMid - (row.sig[i] / mx) * (rowH / 2 * 0.82);
+          i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
+        // CP region on rows 0 and 2
+        if (si === 0) {
+          const cpEndX = padL + (Ncp / dispLen) * iW;
+          ctx.fillStyle = row.col + '28'; ctx.fillRect(padL, y0 + 1, cpEndX - padL, rowH - 2);
+          ctx.strokeStyle = row.col + '55'; ctx.lineWidth = 0.8; ctx.setLineDash([3, 3]);
+          ctx.beginPath(); ctx.moveTo(cpEndX, y0 + 1); ctx.lineTo(cpEndX, y0 + rowH - 2); ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.fillStyle = row.col; ctx.font = '8px monospace'; ctx.fillText(`CP(${Ncp})`, padL + 2, y0 + rowH - 6);
+        }
+
+        // FFT window box
+        if (si >= 2) {
+          ctx.strokeStyle = row.col + '88'; ctx.lineWidth = 1.5; ctx.setLineDash([]);
+          ctx.strokeRect(padL + 0.5, y0 + 2, iW - 1, rowH - 4);
+        }
+
+        // ISI region on row 3
+        if (si === 3) {
+          const isiEndX = padL + (delay / dispLen) * iW;
+          ctx.fillStyle = 'rgba(239,68,68,0.3)'; ctx.fillRect(padL, y0 + 2, isiEndX - padL, rowH - 4);
+          ctx.fillStyle = 'rgba(239,68,68,0.9)'; ctx.font = 'bold 9px monospace';
+          ctx.fillText('← ISI!', padL + 2, yMid + 4);
+        }
+
+        // Clean marker on row 2
+        if (si === 2) {
+          ctx.fillStyle = 'rgba(16,185,129,0.85)'; ctx.font = 'bold 9px monospace';
+          ctx.fillText('✓ Clean FFT window', padL + iW * 0.55, yMid + 4);
+        }
+      });
+    }
+
+    // ── CHANNEL ESTIMATION DEMO ────────────────────────────
+    function drawChannelDemo() {
+      document.getElementById('demoTitle').textContent = 'Pilot-Based Channel Estimation';
+      document.getElementById('demoDesc').textContent =
+        'In real OFDM systems (LTE, WiFi, 5G), known "pilot" symbols are inserted at fixed subcarrier positions. '
+        + 'The receiver compares received pilots to known values to estimate the channel H[k] at those frequencies, '
+        + 'then interpolates across all subcarriers for equalization.';
+
+      const el = document.getElementById('cvDemo');
+      const R = window.devicePixelRatio || 1;
+      const rect = el.getBoundingClientRect();
+      el.width = rect.width * R; el.height = rect.height * R;
+      const ctx = el.getContext('2d'); ctx.scale(R, R);
+      const W = rect.width, H = rect.height;
+      ctx.fillStyle = '#040d1a'; ctx.fillRect(0, 0, W, H);
+
+      const N = FFT_SIZES[STATE.fftIdx];
+      const pilotSpacing = 6; // every 6th subcarrier is a pilot
+
+      // Simulate a frequency-selective channel H[k] (multipath)
+      const taps = [{ g: 1.0, d: 0 }, { g: 0.6, d: 3 }, { g: 0.35, d: 7 }, { g: 0.2, d: 12 }];
+      function channelH(k) {
+        let re = 0, im = 0;
+        for (const t of taps) {
+          const phi = -2 * Math.PI * k * t.d / N;
+          re += t.g * Math.cos(phi); im += t.g * Math.sin(phi);
+        }
+        return { mag: Math.sqrt(re * re + im * im), re, im };
+      }
+
+      const padL = 52, padR = 16, padT = 30;
+      const secH = (H - padT) / 3;
+      const iW = W - padL - padR;
+
+      const labels = ['① True Channel  H[k]  (unknown to receiver)',
+        '② Pilots received  +  interpolated estimate  Ĥ[k]',
+        '③ Equalized subcarriers  (data / Ĥ[k])'];
+      const cols = ['#f59e0b', '#00d4ff', '#10b981'];
+
+      for (let sec = 0; sec < 3; sec++) {
+        const y0 = padT + sec * secH, yBot = y0 + secH - 6;
+        ctx.fillStyle = cols[sec] + 'cc'; ctx.font = 'bold 10px monospace';
+        ctx.fillText(labels[sec], padL, y0 - 3);
+
+        // axes
+        ctx.strokeStyle = 'rgba(100,160,200,0.25)'; ctx.lineWidth = 0.5;
+        ctx.beginPath(); ctx.moveTo(padL, yBot); ctx.lineTo(W - padR, yBot); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(padL, y0 + 2); ctx.lineTo(padL, yBot); ctx.stroke();
+
+        const drawH = secH - 20;
+        const pilotIdxs = [];
+
+        if (sec === 0) {
+          // True |H[k]|
+          ctx.strokeStyle = cols[0]; ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          for (let k = 0; k < N; k++) {
+            const { mag } = channelH(k);
+            const x = padL + (k / N) * iW;
+            const y = yBot - mag / (1.6) * drawH * 0.85;
+            k === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+          }
+          ctx.stroke();
+        }
+
+        if (sec === 1) {
+          // True channel (faint reference)
+          ctx.strokeStyle = cols[0] + '44'; ctx.lineWidth = 1;
+          ctx.beginPath();
+          for (let k = 0; k < N; k++) {
+            const x = padL + (k / N) * iW, y = yBot - channelH(k).mag / 1.6 * drawH * 0.85;
+            k === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+          }
+          ctx.stroke();
+
+          // Collect pilot positions & values
+          const pilots = [];
+          for (let k = 0; k < N; k += pilotSpacing) {
+            const h = channelH(k);
+            // Add small estimation noise
+            pilots.push({ k, mag: h.mag + (Math.random() - 0.5) * 0.08 });
+          }
+
+          // Interpolate (linear)
+          const estH = new Float64Array(N);
+          for (let k = 0; k < N; k++) {
+            const lo = [...pilots].reverse().find(p => p.k <= k) || pilots[0];
+            const hi = pilots.find(p => p.k >= k) || pilots[pilots.length - 1];
+            if (lo.k === hi.k) { estH[k] = lo.mag; }
+            else { const t = (k - lo.k) / (hi.k - lo.k); estH[k] = lo.mag * (1 - t) + hi.mag * t; }
+          }
+
+          // Draw interpolated estimate
+          ctx.strokeStyle = cols[1]; ctx.lineWidth = 1.5; ctx.setLineDash([4, 3]);
+          ctx.beginPath();
+          for (let k = 0; k < N; k++) {
+            const x = padL + (k / N) * iW, y = yBot - estH[k] / 1.6 * drawH * 0.85;
+            k === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+          }
+          ctx.stroke(); ctx.setLineDash([]);
+
+          // Draw pilot markers
+          ctx.fillStyle = '#f59e0b';
+          for (const p of pilots) {
+            const x = padL + (p.k / N) * iW, y = yBot - p.mag / 1.6 * drawH * 0.85;
+            ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI * 2); ctx.fill();
+          }
+
+          // Legend
+          ctx.font = '9px monospace';
+          ctx.fillStyle = cols[0] + '88'; ctx.fillText('― True H[k]', W - 130, y0 + 12);
+          ctx.fillStyle = cols[1]; ctx.fillText('‒‒ Estimated Ĥ[k]', W - 130, y0 + 24);
+          ctx.fillStyle = '#f59e0b'; ctx.fillText('● Pilot measurements', W - 130, y0 + 36);
+        }
+
+        if (sec === 2) {
+          // Show constellation scatter: equalized vs unequalized
+          const nSym = 200;
+          const mod = buildMod(STATE.mod);
+          const snr = Math.pow(10, STATE.snrDb / 10);
+          const sigma = Math.sqrt(0.5 / snr);
+
+          // Pick 2 random subcarriers: one in a "fading dip", one normal
+          const fadedK = Math.round(N * 0.3); // subcarrier in a fading notch
+          const goodK = Math.round(N * 0.7);
+          const hFaded = channelH(fadedK);
+          const hGood = channelH(goodK);
+
+          function drawCluster(cx, cy, gain, pxX, pxY, color, label) {
+            ctx.fillStyle = color + '99';
+            for (let i = 0; i < nSym; i++) {
+              const n = (Math.random() * 2 - 1) * sigma / gain;
+              const x = pxX + (cx + n * 1.4) * 40;
+              const y = pxY + (cy + n * 1.4) * 40;
+              ctx.beginPath(); ctx.arc(x, y, 1.5, 0, Math.PI * 2); ctx.fill();
+            }
+            ctx.fillStyle = color; ctx.font = 'bold 9px monospace'; ctx.fillText(label, pxX - 15, pxY - 20);
+          }
+
+          const mid = y0 + drawH / 2 + 12;
+          const lx = padL + iW * 0.18, rx = padL + iW * 0.65;
+
+          // Faded subcarrier — before equalization
+          drawCluster(0, 0, hFaded.mag * 0.5, lx, mid, '#ef4444', `k=${fadedK} (fading notch)`);
+          ctx.fillStyle = 'rgba(239,68,68,0.5)'; ctx.font = '8px monospace';
+          ctx.fillText('Before equalization: noise amplified', lx - 30, mid + 36);
+
+          // Good subcarrier — after equalization
+          drawCluster(0, 0, 1.0, rx, mid, '#10b981', `k=${goodK} (good subcarrier)`);
+          ctx.fillStyle = 'rgba(16,185,129,0.5)'; ctx.font = '8px monospace';
+          ctx.fillText('After equalization: symbol recoverable', rx - 30, mid + 36);
+
+          ctx.fillStyle = 'rgba(200,220,255,0.6)'; ctx.font = '9px monospace';
+          ctx.fillText('Equalization = divide received signal by Ĥ[k]  →  removes channel distortion per subcarrier', padL, yBot - 2);
+        }
+      }
+    }
+
+    // ── CFO / ICI DEMO ────────────────────────────────────
+    function drawCFODemo() {
+      document.getElementById('demoTitle').textContent = 'Carrier Frequency Offset (CFO) & ICI';
+      document.getElementById('demoDesc').textContent =
+        'OFDM subcarriers are orthogonal ONLY when transmitter and receiver are perfectly synchronized in frequency. '
+        + 'A tiny frequency mismatch (CFO) destroys orthogonality — each subcarrier leaks energy into all others '
+        + '(Inter-Carrier Interference, ICI). This is a fundamental OFDM weakness vs. single-carrier systems.';
+
+      const el = document.getElementById('cvDemo');
+      const R = window.devicePixelRatio || 1;
+      const rect = el.getBoundingClientRect();
+      el.width = rect.width * R; el.height = rect.height * R;
+      const ctx = el.getContext('2d'); ctx.scale(R, R);
+      const W = rect.width, H = rect.height;
+      ctx.fillStyle = '#040d1a'; ctx.fillRect(0, 0, W, H);
+
+      const N_SC = 32;
+      const secW = W / 2 - 20;
+      const secH = H * 0.48;
+      const padL = 14, padT = 24, padB = 20;
+      const iH = secH - padT - padB;
+
+      function drawICI(ox, oy, eps, title, col) {
+        ctx.fillStyle = col; ctx.font = 'bold 11px monospace';
+        ctx.fillText(title, ox + padL, oy + 14);
+
+        // Draw sinc-like responses for each subcarrier
+        const resolution = 400;
+        for (let k = 0; k < Math.min(N_SC, 12); k++) {
+          const kHue = (k * 360 / 12) | 0;
+          const kCol = `hsla(${kHue},80%,65%,0.5)`;
+          ctx.strokeStyle = kCol; ctx.lineWidth = 0.8;
+          ctx.beginPath();
+          for (let px = 0; px < resolution; px++) {
+            const f = (px / resolution - 0.5) * N_SC; // freq axis in subcarrier units
+            const arg = Math.PI * (f - k - eps);
+            const sinc = Math.abs(arg) < 1e-6 ? 1 : Math.sin(arg) / (arg);
+            const y_val = oy + padT + iH - sinc * sinc * iH * 0.85;
+            px === 0 ? ctx.moveTo(ox + padL + px / resolution * secW, y_val)
+              : ctx.lineTo(ox + padL + px / resolution * secW, y_val);
+          }
+          ctx.stroke();
+        }
+
+        // x axis
+        ctx.strokeStyle = 'rgba(100,160,200,0.3)'; ctx.lineWidth = 0.5;
+        ctx.beginPath(); ctx.moveTo(ox + padL, oy + padT + iH); ctx.lineTo(ox + padL + secW, oy + padT + iH); ctx.stroke();
+
+        // Subcarrier markers
+        for (let k = 0; k < Math.min(N_SC, 12); k++) {
+          const x = ox + padL + ((k + eps) / N_SC + 0.5) * secW;
+          ctx.strokeStyle = 'rgba(255,255,255,0.12)'; ctx.lineWidth = 0.5;
+          ctx.beginPath(); ctx.moveTo(x, oy + padT); ctx.lineTo(x, oy + padT + iH); ctx.stroke();
+        }
+
+        // ICI annotation
+        if (eps > 0.05) {
+          ctx.fillStyle = 'rgba(239,68,68,0.85)'; ctx.font = 'bold 9px monospace';
+          ctx.fillText('← ICI leakage between subcarriers!', ox + padL + 4, oy + padT + iH - 4);
+        } else {
+          ctx.fillStyle = 'rgba(16,185,129,0.85)'; ctx.font = 'bold 9px monospace';
+          ctx.fillText('✓ Perfect orthogonality  (no leakage)', ox + padL + 4, oy + padT + iH - 4);
+        }
+        ctx.fillStyle = 'rgba(160,190,220,0.5)'; ctx.font = '8px monospace';
+        ctx.fillText(`ε = ${eps.toFixed(2)} · Δf`, ox + padL + 4, oy + padT + 10);
+      }
+
+      drawICI(0, 0, 0.00, 'No CFO  (ε = 0)  —  Perfect', '#10b981');
+      drawICI(W / 2, 0, STATE.cfoAmount, `CFO = ${STATE.cfoAmount.toFixed(2)}·Δf  —  ICI!`, '#ef4444');
+
+      // Constellation comparison (bottom half)
+      const botY = H * 0.52;
+      ctx.fillStyle = 'rgba(0,212,255,0.7)'; ctx.font = 'bold 11px monospace';
+      ctx.fillText('Effect on received constellation  (16-QAM @ current SNR):', 14, botY + 14);
+
+      function drawConst(ox, eps, label) {
+        const cx = ox + secW / 2, cy = botY + 30 + (H - botY - 50) / 2;
+        const sc = Math.min(secW, H - botY - 50) * 0.32;
+        const M = 16, L = 4;
+        const snr = Math.pow(10, STATE.snrDb / 10);
+        const sigma = Math.sqrt(0.5 / snr);
+        const sinc_att = Math.abs(eps) < 1e-6 ? 1 : Math.abs(Math.sin(Math.PI * eps) / (Math.PI * eps));
+        const ici_s = Math.sqrt(Math.max(0, 1 - sinc_att * sinc_att) * 0.5);
+
+        // Ideal points
+        for (let i = 0; i < L; i++) for (let j = 0; j < L; j++) {
+          const ix = (2 * i - (L - 1)) / Math.sqrt(10), iy = (2 * j - (L - 1)) / Math.sqrt(10);
+          ctx.fillStyle = 'rgba(0,212,255,0.25)';
+          ctx.beginPath(); ctx.arc(cx + ix * sc, cy - iy * sc, 2.5, 0, Math.PI * 2); ctx.fill();
+        }
+        // Received points
+        for (let s = 0; s < 400; s++) {
+          const si_idx = (s % 4), sq_idx = ((s >> 2) % 4);
+          const Iv = (2 * si_idx - (L - 1)) / Math.sqrt(10), Qv = (2 * sq_idx - (L - 1)) / Math.sqrt(10);
+          const n1 = (randn() * ici_s + randn() * sigma) * sinc_att;
+          const n2 = (randn() * ici_s + randn() * sigma) * sinc_att;
+          const rx = Iv * sinc_att + n1, ry = Qv * sinc_att + n2;
+          ctx.fillStyle = 'rgba(0,180,220,0.45)';
+          ctx.beginPath(); ctx.arc(cx + rx * sc, cy - ry * sc, 1.3, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.strokeStyle = 'rgba(100,160,200,0.3)'; ctx.lineWidth = 0.5;
+        ctx.beginPath(); ctx.moveTo(ox + 4, cy); ctx.lineTo(ox + secW - 4, cy); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(cx, botY + 24); ctx.lineTo(cx, H - 4); ctx.stroke();
+        ctx.fillStyle = 'rgba(200,220,255,0.7)'; ctx.font = 'bold 10px monospace';
+        ctx.fillText(label, ox + 6, H - 5);
+      }
+
+      drawConst(0, 0, `ε=0  ·  Clean`);
+      drawConst(W / 2, STATE.cfoAmount, `ε=${STATE.cfoAmount.toFixed(2)}  ·  Blurred by ICI`);
+
+      // Note
+      ctx.fillStyle = 'rgba(245,158,11,0.75)'; ctx.font = '9px monospace';
+      ctx.fillText(`Adjust CFO slider in Channel Conditions to see how it changes →  currently ε = ${STATE.cfoAmount.toFixed(2)}`, 14, H - 24);
+    }
+
+    // ── FEC CODING GAIN DEMO ───────────────────────────────
+    function drawFECDemo() {
+      document.getElementById('demoTitle').textContent = 'Forward Error Correction — Coding Gain';
+      document.getElementById('demoDesc').textContent =
+        'FEC adds structured redundancy to the bit stream. The decoder uses this redundancy to '
+        + 'correct errors without retransmission. The "coding gain" is how many dB of SNR the code saves '
+        + 'at a target BER. Rate-1/3 repetition code is simple; Rate-1/2 convolutional code (K=3) is used in real systems.';
+
+      const el = document.getElementById('cvDemo');
+      const R = window.devicePixelRatio || 1;
+      const rect = el.getBoundingClientRect();
+      el.width = rect.width * R; el.height = rect.height * R;
+      const ctx = el.getContext('2d'); ctx.scale(R, R);
+      const W = rect.width, H = rect.height;
+      ctx.fillStyle = '#040d1a'; ctx.fillRect(0, 0, W, H);
+
+      const padL = 52, padR = 20, padT = 30, padB = 35;
+      const iW = W - padL - padR, iH = H - padT - padB;
+      const snrMin = -2, snrMax = 22, berMin = 1e-7, berMax = 0.6;
+
+      function toX(s) { return padL + (s - snrMin) / (snrMax - snrMin) * iW; }
+      function toY(b) { const l = Math.log10(Math.max(berMin, b)), lo = Math.log10(berMin), hi = Math.log10(berMax); return padT + (1 - (l - lo) / (hi - lo)) * iH; }
+
+      // Grid
+      ctx.strokeStyle = 'rgba(21,45,72,0.8)'; ctx.lineWidth = 0.5;
+      for (let s = snrMin; s <= snrMax; s += 2) { const x = toX(s); ctx.beginPath(); ctx.moveTo(x, padT); ctx.lineTo(x, padT + iH); ctx.stroke(); }
+      for (let e = -7; e <= 0; e++) { const y = toY(Math.pow(10, e)); ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(padL + iW, y); ctx.stroke(); }
+
+      const snrVals = []; for (let s = snrMin; s <= snrMax; s += 0.25) snrVals.push(s);
+
+      const curves = [
+        { label: 'Uncoded BPSK', color: '#6b7280', fn: s => theorBER('BPSK', s), dash: [] },
+        { label: 'Rep-1/3 code', color: '#f59e0b', fn: s => codedBER('rep3', 'BPSK', s), dash: [6, 3] },
+        { label: 'Conv-1/2 (K=3)', color: '#10b981', fn: s => codedBER('conv', 'BPSK', s), dash: [10, 4] },
+      ];
+
+      curves.forEach(({ label, color, fn, dash }) => {
+        ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.setLineDash(dash);
+        ctx.beginPath(); let first = true;
+        for (const s of snrVals) {
+          const b = fn(s); if (b < berMin || b > berMax) { first = true; continue; }
+          const x = toX(s), y = toY(b);
+          first ? ctx.moveTo(x, y) : ctx.lineTo(x, y); first = false;
+        }
+        ctx.stroke(); ctx.setLineDash([]);
+      });
+
+      // Coding gain arrows at BER=1e-4
+      const targetBER = 1e-4;
+      const snrUncoded = (() => { for (let s = snrMin; s < snrMax; s += 0.1) if (theorBER('BPSK', s) <= targetBER) return s; return snrMax; })();
+      const snrRep3 = (() => { for (let s = snrMin; s < snrMax; s += 0.1) if (codedBER('rep3', 'BPSK', s) <= targetBER) return s; return snrMax; })();
+      const snrConv = (() => { for (let s = snrMin; s < snrMax; s += 0.1) if (codedBER('conv', 'BPSK', s) <= targetBER) return s; return snrMax; })();
+      const targetY = toY(targetBER);
+
+      // Dashed horizontal line at target BER
+      ctx.strokeStyle = 'rgba(200,200,200,0.25)'; ctx.lineWidth = 0.8; ctx.setLineDash([4, 3]);
+      ctx.beginPath(); ctx.moveTo(padL, targetY); ctx.lineTo(padL + iW, targetY); ctx.stroke();
+      ctx.setLineDash([]); ctx.fillStyle = 'rgba(200,200,200,0.6)'; ctx.font = '8px monospace';
+      ctx.fillText('Target BER = 10⁻⁴', padL + 3, targetY - 3);
+
+      // Gain arrows
+      function gainArrow(x1, x2, col, label) {
+        if (x2 >= x1 - 2) return;
+        ctx.strokeStyle = col; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(toX(x1), targetY + 18); ctx.lineTo(toX(x2), targetY + 18); ctx.stroke();
+        ctx.fillStyle = col; ctx.font = 'bold 9px monospace';
+        const gain = (x1 - x2).toFixed(1);
+        ctx.fillText(`${gain} dB gain`, toX((x1 + x2) / 2) - 18, targetY + 30);
+      }
+      gainArrow(snrUncoded, snrRep3, '#f59e0b', '');
+      gainArrow(snrUncoded, snrConv, '#10b981', '');
+
+      // Axes
+      ctx.strokeStyle = 'rgba(100,160,200,0.4)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(padL, padT); ctx.lineTo(padL, padT + iH); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(padL, padT + iH); ctx.lineTo(padL + iW, padT + iH); ctx.stroke();
+
+      // X labels
+      ctx.fillStyle = 'rgba(100,160,200,0.7)'; ctx.font = '9px monospace'; ctx.textAlign = 'center';
+      for (let s = 0; s <= snrMax; s += 4) ctx.fillText(s, toX(s), H - padB + 12);
+      ctx.fillText('Eb/N₀ (dB)', padL + iW / 2, H - 4); ctx.textAlign = 'left';
+
+      // Y labels
+      for (let e = -6; e <= 0; e += 2) { const y = toY(Math.pow(10, e)); ctx.fillStyle = 'rgba(100,160,200,0.7)'; ctx.font = '9px monospace'; ctx.fillText(`1e${e}`, 2, y + 3); }
+      ctx.save(); ctx.translate(11, padT + iH / 2); ctx.rotate(-Math.PI / 2); ctx.fillStyle = 'rgba(100,160,200,0.7)'; ctx.font = '9px monospace'; ctx.fillText('BER', -10, 0); ctx.restore();
+
+      // Legend
+      curves.forEach(({ label, color, dash }, i) => {
+        const ly = padT + 8 + i * 14;
+        ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.setLineDash(dash);
+        ctx.beginPath(); ctx.moveTo(W - 140, ly); ctx.lineTo(W - 120, ly); ctx.stroke();
+        ctx.setLineDash([]); ctx.fillStyle = color; ctx.font = '9px monospace'; ctx.fillText(label, W - 116, ly + 3);
+      });
+
+      // Info box
+      ctx.fillStyle = 'rgba(16,185,129,0.85)'; ctx.font = 'bold 10px monospace';
+      ctx.fillText(`Conv code gain @ 1e-4: ${(snrUncoded - snrConv).toFixed(1)} dB  |  Rate penalty: ×2 bandwidth`, padL, H - 5);
+    }
+
+    // ════════════════════════════════════════════════════════
+    //  MATH REPORT
+    // ════════════════════════════════════════════════════════
+
+    function openMathReport() {
+      const S = STATE;
+      const mod = buildMod(S.mod);
+      const N = FFT_SIZES[S.fftIdx];
+      const par = ofdmParams(N, S.cpRatio);
+      const k = mod.bps;
+      const M = mod.M;
+      const L = mod.name.endsWith('QAM') ? Math.round(Math.sqrt(M)) : 0;
+
+      // ── Pre-compute everything ──
+      const snr_lin = Math.pow(10, S.snrDb / 10);
+      const EbN0_lin = snr_lin / k;
+      const EbN0_dB = S.snrDb - 10 * Math.log10(k);
+      const sigma_n = Math.sqrt(0.5 / snr_lin);
+      const overhead = par.Ncp / (N + par.Ncp);
+      const spEff = (par.Ndata / N) * k * (1 - overhead);
+      const capacity = Math.log2(1 + snr_lin);
+      const shannonMinLin = Math.pow(2, k) - 1;
+      const shannonMinDB = 10 * Math.log10(shannonMinLin);
+      const snrMargin = S.snrDb - shannonMinDB;
+      const ber_th = codedBER(S.fec, S.mod, S.snrDb);
+      const ber_th_uncoded = theorBER(S.mod, S.snrDb);
+      const sigma_ph = 0.18 / Math.sqrt(snr_lin);
+      const sinc_att = Math.abs(Math.sin(Math.PI * S.cfoAmount) / (Math.PI * S.cfoAmount + 1e-12));
+      const ici_pwr = Math.max(0, 1 - sinc_att * sinc_att);
+      const paprTheo = 10 * Math.log10(N);
+
+      // ── Format helpers ──
+      const n = (v, d = 4) => isNaN(v) || !isFinite(v) ? '—' : (+v).toFixed(d);
+      const nb = v => isNaN(v) || v <= 0 ? '—' : v < 1e-9 ? '< 10⁻⁹' : v.toExponential(3);
+      const nd = (v, d = 2) => n(v, d) + ' dB';
+
+      // ── Channel-specific section ──
+      const CH_LABEL = { awgn: 'AWGN', rayleigh: 'Rayleigh Flat Fading', multipath: 'Frequency-Selective Multipath', phase_noise: 'Phase Noise', doppler: 'Doppler Fading', cfo: 'Carrier Frequency Offset (CFO)' };
+      let chEqs = '';
+      if (S.channel === 'awgn') {
+        chEqs = `
+      <div class="eq-block">
+        <div class="eq-label">Received signal</div>
+        <div class="eq">r = s + n,&nbsp;&nbsp; n ~ 𝒞𝒩(0, σ²)</div>
+      </div>
+      <div class="eq-block">
+        <div class="eq-label">Noise std dev σ = √(E<sub>s</sub> / 2·SNR)</div>
+        <div class="eq">σ = √(1 / (2 × ${n(snr_lin, 2)})) = <span class="val">${n(sigma_n, 6)}</span></div>
+      </div>`;
+      } else if (S.channel === 'rayleigh') {
+        chEqs = `
+      <div class="eq-block"><div class="eq-label">Flat Rayleigh fading model</div>
+        <div class="eq">r = h·s + n,&nbsp;&nbsp; h ~ 𝒞𝒩(0,1),&nbsp;&nbsp; |h|² ~ Exp(1)</div></div>
+      <div class="eq-block"><div class="eq-label">Fading amplitude distribution</div>
+        <div class="eq">PDF: f<sub>|h|</sub>(x) = 2x·e<sup>−x²</sup>,&nbsp;&nbsp; E[|h|²] = 1</div></div>
+      <div class="eq-block"><div class="eq-label">Equalized output (perfect CSI)</div>
+        <div class="eq">r̂ = r/h = s + n/h&nbsp;&nbsp; → noise enhanced in fading dips</div></div>`;
+      } else if (S.channel === 'phase_noise') {
+        chEqs = `
+      <div class="eq-block"><div class="eq-label">Phase noise model (oscillator jitter)</div>
+        <div class="eq">r = s·e<sup>jφ</sup> + n,&nbsp;&nbsp; φ ~ 𝒩(0, σ<sub>φ</sub>²)</div></div>
+      <div class="eq-block"><div class="eq-label">Phase noise σ<sub>φ</sub> = 0.18 / √SNR</div>
+        <div class="eq">σ<sub>φ</sub> = 0.18 / √${n(snr_lin, 2)} = <span class="val">${n(sigma_ph, 5)} rad</span> = <span class="val">${n(sigma_ph * 180 / Math.PI, 2)}°</span></div></div>
+      <div class="note">⚠ Phase noise floor is SNR-independent → limits high-order QAM (1024-QAM+) regardless of transmit power.</div>`;
+      } else if (S.channel === 'cfo') {
+        chEqs = `
+      <div class="eq-block"><div class="eq-label">CFO model — sinc attenuation + ICI</div>
+        <div class="eq">Y[k] = X[k]·sinc(πε) + ICI[k] + N[k]</div></div>
+      <div class="eq-block"><div class="eq-label">Sinc attenuation factor | ε = ${n(S.cfoAmount, 3)}·Δf</div>
+        <div class="eq">|sinc(πε)| = |sin(π×${n(S.cfoAmount, 3)}) / (π×${n(S.cfoAmount, 3)})| = <span class="val">${n(sinc_att, 5)}</span></div></div>
+      <div class="eq-block"><div class="eq-label">ICI power fraction (leaks to all other subcarriers)</div>
+        <div class="eq">P<sub>ICI</sub>/P<sub>s</sub> = 1 − sinc²(πε) = 1 − ${n(sinc_att * sinc_att, 5)} = <span class="val">${n(ici_pwr, 5)}</span> = <span class="val">${n(ici_pwr * 100, 2)}%</span></div></div>
+      <div class="note">⚠ Even ε = 0.1 (10% of Δf) causes ${n(ici_pwr * 100, 1)}% of signal power to become interference.</div>`;
+      } else if (S.channel === 'doppler') {
+        chEqs = `
+      <div class="eq-block"><div class="eq-label">Doppler phase shift per symbol</div>
+        <div class="eq">θ(t) = 2π · f<sub>d</sub> · t / f<sub>s</sub></div></div>
+      <div class="eq-block"><div class="eq-label">Normalized Doppler = f<sub>d</sub>·T (current: ${n(S.dopplerFd, 3)})</div>
+        <div class="eq">r[n] = s[n] · e<sup>j·2π·f<sub>d</sub>·T·n</sup> + noise</div></div>
+      <div class="eq-block"><div class="eq-label">Coherence time T<sub>c</sub> ≈ 1/(4·f<sub>d</sub>)</div>
+        <div class="eq">Doppler spread B<sub>d</sub> = 2·f<sub>d</sub>&nbsp;&nbsp; (two-sided)</div></div>
+      <div class="note">⚠ When f<sub>d</sub>·T<sub>ofdm</sub> > 0.01, pilot-based channel estimation degrades significantly.</div>`;
+      } else { // multipath
+        chEqs = `
+      <div class="eq-block"><div class="eq-label">Frequency-selective channel (multipath)</div>
+        <div class="eq">Y[k] = H[k]·X[k] + N[k],&nbsp;&nbsp; H[k] = Σ<sub>l</sub> h<sub>l</sub>·e<sup>−j2πkτ<sub>l</sub>/N</sup></div></div>
+      <div class="eq-block"><div class="eq-label">Equalization (one-tap, per subcarrier)</div>
+        <div class="eq">X̂[k] = Y[k] / Ĥ[k] = X[k] + N[k]/H[k]</div></div>
+      <div class="note">💡 OFDM converts frequency-selective channel into parallel flat-fading subchannels — one-tap equalizer per subcarrier is sufficient.</div>`;
+      }
+
+      // ── FEC section ──
+      let fecSection = '';
+      if (S.fec !== 'none') {
+        if (S.fec === 'rep3') {
+          const p_ch = theorBER(S.mod, S.snrDb - 10 * Math.log10(3));
+          const ber_out = Math.max(0, 3 * p_ch * p_ch - 2 * p_ch * p_ch * p_ch);
+          fecSection = `
+        <div class="section"><div class="section-title">§7 — Forward Error Correction: Rate-1/3 Repetition Code</div>
+          <div class="eq-block"><div class="eq-label">Encoding rule</div>
+            <div class="eq">Each info bit transmitted 3 times:&nbsp;&nbsp; b → (b, b, b)</div></div>
+          <div class="eq-block"><div class="eq-label">Decoding: majority vote</div>
+            <div class="eq">b̂ = majority(r₁, r₂, r₃)&nbsp;&nbsp; ← correct if ≤1 of 3 bits in error</div></div>
+          <div class="eq-block"><div class="eq-label">Output BER = 3p² − 2p³&nbsp;&nbsp; where p = channel bit BER</div>
+            <div class="eq">p = BER<sub>uncoded</sub>(SNR − 10·log₁₀(3)) = BER(${nd(S.snrDb - 10 * Math.log10(3))}) = <span class="val">${nb(p_ch)}</span></div>
+            <div class="eq" style="margin-top:4px">BER<sub>out</sub> = 3×(${nb(p_ch)})² − 2×(${nb(p_ch)})³ = <span class="val">${nb(ber_out)}</span></div></div>
+          <div class="eq-block"><div class="eq-label">Code rate &amp; bandwidth penalty</div>
+            <div class="eq">R<sub>c</sub> = 1/3&nbsp;&nbsp; → 3× the bandwidth / channel uses per info bit</div></div>
+        </div>`;
+        } else {
+          const Rc = 0.5, dfree = 5;
+          fecSection = `
+        <div class="section"><div class="section-title">§7 — Forward Error Correction: Rate-1/2 Convolutional Code (K=3)</div>
+          <div class="eq-block"><div class="eq-label">Code parameters</div>
+            <div class="eq">Rate R<sub>c</sub> = 1/2,&nbsp;&nbsp; Constraint length K = 3,&nbsp;&nbsp; d<sub>free</sub> = 5</div>
+            <div class="eq">Generators: g₁ = [1,1,1] (1+D+D²),&nbsp;&nbsp; g₂ = [1,0,1] (1+D²)</div></div>
+          <div class="eq-block"><div class="eq-label">Encoder output (2 coded bits per info bit)</div>
+            <div class="eq">c₁[t] = u[t] ⊕ u[t−1] ⊕ u[t−2]&nbsp;&nbsp; (XOR with shift register)</div>
+            <div class="eq">c₂[t] = u[t] ⊕ u[t−2]</div></div>
+          <div class="eq-block"><div class="eq-label">Viterbi decoder: minimizes Hamming distance over 4-state trellis</div>
+            <div class="eq">â = argmin<sub>u</sub> d<sub>H</sub>(received, encoded(u))</div></div>
+          <div class="eq-block"><div class="eq-label">Union bound on BER (AWGN)</div>
+            <div class="eq">BER ≲ a<sub>d<sub>free</sub></sub> · Q(√(d<sub>free</sub>·2·R<sub>c</sub>·E<sub>b</sub>/N₀))</div>
+            <div class="eq">BER ≲ 10 · Q(√(${dfree}×2×${Rc}×${n(EbN0_lin, 3)})) = 10·Q(√${n(dfree * 2 * Rc * EbN0_lin, 3)}) = <span class="val">${nb(ber_th)}</span></div></div>
+          <div class="eq-block"><div class="eq-label">Coding gain vs uncoded at current BER</div>
+            <div class="eq">BER<sub>uncoded</sub> = ${nb(ber_th_uncoded)}&nbsp;&nbsp;→&nbsp;&nbsp; BER<sub>coded</sub> = ${nb(ber_th)}</div></div>
+        </div>`;
+        }
+      }
+
+      // ── QAM/PSK specific theory ──
+      let modEqs = '';
+      if (S.mod === 'BPSK') {
+        modEqs = `<div class="eq">BER = ½·erfc(√(E<sub>b</sub>/N₀)) = ½·erfc(√${n(EbN0_lin, 3)}) = <span class="val">${nb(ber_th_uncoded)}</span></div>`;
+      } else if (S.mod === 'QPSK') {
+        modEqs = `<div class="eq">BER = ½·erfc(√(E<sub>b</sub>/N₀)) = ½·erfc(√${n(EbN0_lin, 3)}) = <span class="val">${nb(ber_th_uncoded)}</span></div>
+      <div class="eq" style="margin-top:4px">Same as BPSK — QPSK doubles throughput at identical BER performance.</div>`;
+      } else if (S.mod === '8PSK') {
+        const arg = Math.sqrt(2 * 3 * EbN0_lin) * Math.sin(Math.PI / 8);
+        modEqs = `<div class="eq">BER ≈ (2/3)·Q(√(2·k·E<sub>b</sub>/N₀)·sin(π/M))</div>
+      <div class="eq">= (2/3)·Q(√(2×3×${n(EbN0_lin, 3)})·sin(π/8)) = (2/3)·Q(${n(arg, 4)}) = <span class="val">${nb(ber_th_uncoded)}</span></div>`;
+      } else {
+        // M-QAM
+        const arg_sq = 3 * k * EbN0_lin / (M - 1);
+        modEqs = `<div class="eq">BER ≈ (4/k)·(1 − 1/√M) · ½·erfc(√(3k·E<sub>b</sub>/N₀ / 2(M−1)))</div>
+      <div class="eq">= (4/${k})·(1 − 1/${L}) · ½·erfc(√(3×${k}×${n(EbN0_lin, 3)} / (2×${M - 1})))</div>
+      <div class="eq">= (4/${k})×${n((1 - 1 / L), 4)} · ½·erfc(√${n(arg_sq, 5)}) = <span class="val">${nb(ber_th_uncoded)}</span></div>
+      <div class="eq" style="margin-top:6px">Average symbol power normalization: E[|s|²] = 1&nbsp;&nbsp;
+        → amplitude scale = √(2(L²−1)/3) = √(2×(${L}²−1)/3) = <span class="val">${n(mod.qamScale, 5)}</span></div>`;
+      }
+
+      // ── Build the full HTML report ──
+      const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>OFDM Math Report — ${S.mod} @ ${n(S.snrDb, 1)} dB</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Georgia, sans-serif; font-size: 13px; background: #fff; color: #1a2535; line-height: 1.6; padding: 0; }
+  .page { max-width: 860px; margin: 0 auto; padding: 28px 32px 48px; }
+  h1 { font-size: 22px; font-weight: 800; color: #0a1d30; border-bottom: 3px solid #00aacc; padding-bottom: 8px; margin-bottom: 4px; }
+  .subtitle { color: #4a6a8a; font-size: 12px; margin-bottom: 18px; }
+  .print-btn { display: inline-block; margin-bottom: 20px; padding: 8px 22px; background: #0a7a9a; color: #fff; border: none; border-radius: 6px; font-size: 13px; font-weight: 700; cursor: pointer; letter-spacing: 0.04em; }
+  .print-btn:hover { background: #085f78; }
+  .config-table { width: 100%; border-collapse: collapse; margin-bottom: 24px; font-size: 12px; }
+  .config-table th { background: #0a1d30; color: #fff; padding: 6px 10px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .config-table td { padding: 5px 10px; border-bottom: 1px solid #dde8f0; }
+  .config-table tr:nth-child(even) td { background: #f4f8fc; }
+  .config-table .val-cell { font-weight: 700; color: #0a7a9a; font-variant-numeric: tabular-nums; }
+  .section { margin-bottom: 28px; page-break-inside: avoid; }
+  .section-title { font-size: 15px; font-weight: 800; color: #0a1d30; background: linear-gradient(90deg,#e8f4fb,transparent); border-left: 4px solid #00aacc; padding: 6px 12px; margin-bottom: 14px; }
+  .eq-block { margin-bottom: 12px; padding: 10px 14px; background: #f8fbfd; border: 1px solid #cde0f0; border-radius: 6px; }
+  .eq-label { font-size: 11px; font-weight: 700; color: #4a6a8a; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 5px; }
+  .eq { font-family: 'Courier New', 'Lucida Console', monospace; font-size: 13px; color: #1a2535; white-space: pre-wrap; }
+  .val { color: #0a7a9a; font-weight: 800; }
+  .result-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 8px; }
+  .result-table th { background: #e8f4fb; color: #0a1d30; padding: 5px 10px; text-align: left; font-size: 11px; font-weight: 700; }
+  .result-table td { padding: 5px 10px; border-bottom: 1px solid #dde8f0; }
+  .result-table .key { font-weight: 700; color: #0a1d30; }
+  .result-table .num { font-family: monospace; font-weight: 700; color: #0a7a9a; }
+  .note { font-size: 11.5px; color: #5a5a00; background: #fffbe6; border: 1px solid #ffe066; border-radius: 5px; padding: 7px 12px; margin-top: 8px; line-height: 1.5; }
+  .good { color: #15803d; font-weight: 700; }
+  .warn { color: #b45309; font-weight: 700; }
+  .bad  { color: #b91c1c; font-weight: 700; }
+  .summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 24px; }
+  .summary-card { background: #f4f8fc; border: 1px solid #cde0f0; border-radius: 8px; padding: 12px 16px; }
+  .summary-card .sc-label { font-size: 10px; text-transform: uppercase; font-weight: 700; color: #4a6a8a; letter-spacing: 0.06em; }
+  .summary-card .sc-value { font-size: 20px; font-weight: 800; color: #0a7a9a; font-variant-numeric: tabular-nums; margin-top: 2px; }
+  .summary-card .sc-sub { font-size: 11px; color: #6a8090; margin-top: 1px; }
+  .toc { background: #f4f8fc; border: 1px solid #cde0f0; border-radius: 8px; padding: 12px 20px; margin-bottom: 24px; }
+  .toc-title { font-weight: 800; font-size: 12px; text-transform: uppercase; color: #4a6a8a; margin-bottom: 6px; }
+  .toc a { color: #0a7a9a; text-decoration: none; font-size: 12px; display: block; padding: 1px 0; }
+  .toc a:hover { text-decoration: underline; }
+  hr { border: none; border-top: 1px solid #cde0f0; margin: 20px 0; }
+  @media print {
+    .print-btn { display: none; }
+    body { font-size: 12px; }
+    .page { padding: 12px 16px; }
+    .section { page-break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+<button class="print-btn" onclick="window.print()">⬇ Save as PDF  (Ctrl+P → Save as PDF)</button>
+
+<h1>📐 OFDM Mathematics Report</h1>
+<div class="subtitle">Generated: ${new Date().toLocaleString()} &nbsp;·&nbsp; Simulation snapshot at current settings</div>
+
+<!-- QUICK SUMMARY CARDS -->
+<div class="summary-grid">
+  <div class="summary-card"><div class="sc-label">Modulation</div><div class="sc-value">${S.mod}</div><div class="sc-sub">${k} bits/symbol · M = ${M}</div></div>
+  <div class="summary-card"><div class="sc-label">Es/N₀ (SNR)</div><div class="sc-value">${n(S.snrDb, 1)} dB</div><div class="sc-sub">Eb/N₀ = ${n(EbN0_dB, 2)} dB · linear = ${n(snr_lin, 2)}</div></div>
+  <div class="summary-card"><div class="sc-label">Theoretical BER</div><div class="sc-value" style="font-size:16px">${nb(ber_th)}</div><div class="sc-sub">${S.fec !== 'none' ? 'Coded (' + S.fec + ')' : 'Uncoded'} · Simulated: ${nb(S.berSim)}</div></div>
+  <div class="summary-card"><div class="sc-label">Shannon Capacity</div><div class="sc-value" style="font-size:16px">${n(capacity, 3)} bits/use</div><div class="sc-sub">Margin vs ${S.mod} limit: ${n(snrMargin, 1)} dB</div></div>
+  <div class="summary-card"><div class="sc-label">OFDM: FFT / CP</div><div class="sc-value" style="font-size:16px">N=${N} / N<sub>cp</sub>=${par.Ncp}</div><div class="sc-sub">Data subcarriers: ${par.Ndata} · CP overhead: ${n(overhead * 100, 1)}%</div></div>
+  <div class="summary-card"><div class="sc-label">Spectral Efficiency</div><div class="sc-value" style="font-size:16px">${n(spEff, 3)} b/s/Hz</div><div class="sc-sub">Channel: ${CH_LABEL[S.channel] || S.channel} · FEC: ${S.fec}</div></div>
+</div>
+
+<!-- TABLE OF CONTENTS -->
+<div class="toc">
+  <div class="toc-title">Contents</div>
+  <a href="#s1">§1 — Modulation Scheme: ${S.mod}</a>
+  <a href="#s2">§2 — OFDM Frame Structure</a>
+  <a href="#s3">§3 — SNR, Eb/N₀ &amp; Noise Power</a>
+  <a href="#s4">§4 — Channel Model: ${CH_LABEL[S.channel] || S.channel}</a>
+  <a href="#s5">§5 — Bit Error Rate Analysis</a>
+  <a href="#s6">§6 — Shannon Information Theory &amp; Capacity</a>
+  ${S.fec !== 'none' ? '<a href="#s7">§7 — Forward Error Correction: ' + S.fec + '</a>' : ''}
+  <a href="#s8">§${S.fec !== 'none' ? 8 : 7} — PAPR Analysis</a>
+  <a href="#s9">§${S.fec !== 'none' ? 9 : 8} — Spectral Efficiency</a>
+  <a href="#s10">§${S.fec !== 'none' ? 10 : 9} — Full Parameter Reference Table</a>
+</div>
+
+<!-- §1 MODULATION -->
+<div class="section" id="s1">
+  <div class="section-title">§1 — Modulation Scheme: ${S.mod}</div>
+  <div class="eq-block">
+    <div class="eq-label">Constellation size &amp; bits per symbol</div>
+    <div class="eq">M = 2<sup>k</sup> = 2<sup>${k}</sup> = <span class="val">${M}</span> points&nbsp;&nbsp; → k = <span class="val">${k} bits/symbol</span></div>
+  </div>
+  ${L > 0 ? `<div class="eq-block">
+    <div class="eq-label">Square QAM: L×L grid (L = √M)</div>
+    <div class="eq">L = √${M} = <span class="val">${L}</span>&nbsp;&nbsp; → ${L}×${L} grid of constellation points</div>
+    <div class="eq" style="margin-top:4px">Amplitude levels per dimension: {−(L−1), …, −1, +1, …, +(L−1)} = {${Array.from({ length: L }, (_, i) => 2 * i - (L - 1)).join(', ')}}</div>
+    <div class="eq" style="margin-top:4px">Average power normalization: E[|s|²] = 2(L²−1)/3 = 2(${L}²−1)/3 = ${n(2 * (L * L - 1) / 3, 4)}</div>
+    <div class="eq" style="margin-top:4px">Scale factor to unit power: 1/√${n(2 * (L * L - 1) / 3, 4)} = <span class="val">${n(1 / mod.qamScale, 6)}</span></div>
+  </div>` : ''}
+  <div class="eq-block">
+    <div class="eq-label">Gray coding — adjacent symbols differ by exactly 1 bit</div>
+    <div class="eq">Gray(n) = n ⊕ (n >> 1)&nbsp;&nbsp; ← minimizes BER since nearby points share most bits</div>
+    <div class="eq" style="margin-top:4px">BER reduction factor vs natural binary: ~1/k = 1/${k} at high SNR</div>
+  </div>
+  <div class="eq-block">
+    <div class="eq-label">Theoretical BER — ${S.mod}</div>
+    ${modEqs}
+  </div>
+</div>
+
+<!-- §2 OFDM FRAME -->
+<div class="section" id="s2">
+  <div class="section-title">§2 — OFDM Frame Structure</div>
+  <div class="eq-block">
+    <div class="eq-label">IFFT/FFT size &amp; subcarrier count</div>
+    <div class="eq">N = <span class="val">${N}</span> (FFT size = total subcarriers)</div>
+    <div class="eq">f<sub>s</sub> = N·Δf&nbsp;&nbsp; where Δf = subcarrier spacing = 1/T<sub>u</sub></div>
+  </div>
+  <div class="eq-block">
+    <div class="eq-label">Guard bands &amp; DC null (avoids spectral leakage)</div>
+    <div class="eq">N<sub>guard</sub> = max(2, ⌊N×0.08⌋) = max(2, ⌊${N}×0.08⌋) = <span class="val">${par.Nguard}</span> subcarriers each side</div>
+    <div class="eq">DC subcarrier (k=0 and k=N/2): always null to avoid DC offset issues</div>
+  </div>
+  <div class="eq-block">
+    <div class="eq-label">Usable data subcarriers</div>
+    <div class="eq">N<sub>data</sub> = (N/2 − N<sub>guard</sub>) + (N/2 − 1 − N<sub>guard</sub>)</div>
+    <div class="eq">= (${N}/2 − ${par.Nguard}) + (${N}/2 − 1 − ${par.Nguard}) = ${N / 2 - par.Nguard} + ${N / 2 - 1 - par.Nguard} = <span class="val">${par.Ndata}</span></div>
+  </div>
+  <div class="eq-block">
+    <div class="eq-label">Cyclic Prefix (CP) — copies tail of OFDM symbol to its front</div>
+    <div class="eq">N<sub>cp</sub> = round(N × CP_ratio) = round(${N} × ${S.cpRatio}) = <span class="val">${par.Ncp}</span> samples</div>
+    <div class="eq" style="margin-top:4px">Total symbol length: N + N<sub>cp</sub> = ${N} + ${par.Ncp} = <span class="val">${N + par.Ncp}</span> samples</div>
+    <div class="eq" style="margin-top:4px">CP guards against multipath with delay spread up to <span class="val">${par.Ncp}</span> samples</div>
+  </div>
+  <div class="eq-block">
+    <div class="eq-label">OFDM transmit signal — IFFT of data symbols onto subcarriers</div>
+    <div class="eq">s[n] = (1/N) · Σ<sub>k=0</sub><sup>N−1</sup> X[k] · e<sup>j2πkn/N</sup>,&nbsp;&nbsp; n = 0, 1, …, N−1</div>
+    <div class="eq" style="margin-top:4px">Received after FFT: Y[k] = Σ<sub>n=0</sub><sup>N−1</sup> r[n] · e<sup>−j2πkn/N</sup></div>
+  </div>
+  <div class="eq-block">
+    <div class="eq-label">Orthogonality condition — why subcarriers don't interfere</div>
+    <div class="eq">(1/T) · ∫₀ᵀ e<sup>j2πk₁t/T</sup> · (e<sup>j2πk₂t/T</sup>)* dt = δ[k₁−k₂]&nbsp;&nbsp; (= 1 if k₁=k₂, else 0)</div>
+  </div>
+</div>
+
+<!-- §3 SNR & NOISE -->
+<div class="section" id="s3">
+  <div class="section-title">§3 — SNR, E<sub>b</sub>/N₀ &amp; Noise Power</div>
+  <div class="eq-block">
+    <div class="eq-label">Symbol energy to noise ratio (the slider value)</div>
+    <div class="eq">E<sub>s</sub>/N₀ = ${n(S.snrDb, 1)} dB = 10<sup>${n(S.snrDb, 1)}/10</sup> = <span class="val">${n(snr_lin, 4)}</span> (linear)</div>
+  </div>
+  <div class="eq-block">
+    <div class="eq-label">Bit energy to noise ratio</div>
+    <div class="eq">E<sub>b</sub>/N₀ = E<sub>s</sub>/N₀ − 10·log₁₀(k) = ${n(S.snrDb, 1)} − 10·log₁₀(${k}) = ${n(S.snrDb, 1)} − ${n(10 * Math.log10(k), 3)} = <span class="val">${n(EbN0_dB, 3)} dB</span></div>
+    <div class="eq" style="margin-top:4px">E<sub>b</sub>/N₀ linear = ${n(snr_lin, 4)} / ${k} = <span class="val">${n(EbN0_lin, 5)}</span></div>
+  </div>
+  <div class="eq-block">
+    <div class="eq-label">AWGN noise standard deviation (σ) for unit symbol power E[|s|²]=1</div>
+    <div class="eq">σ = √(E<sub>s</sub> / (2·SNR)) = √(1 / (2 × ${n(snr_lin, 4)})) = √${n(1 / (2 * snr_lin), 8)} = <span class="val">${n(sigma_n, 7)}</span></div>
+    <div class="eq" style="margin-top:4px">Noise variance: σ² = <span class="val">${n(sigma_n * sigma_n, 8)}</span>&nbsp;&nbsp; (per I or Q component)</div>
+  </div>
+  <div class="eq-block">
+    <div class="eq-label">Q-function and erfc relationship</div>
+    <div class="eq">Q(x) = (1/2)·erfc(x/√2)&nbsp;&nbsp;&nbsp;&nbsp; erfc(x) = (2/√π)·∫<sub>x</sub><sup>∞</sup> e<sup>−t²</sup> dt</div>
+    <div class="eq" style="margin-top:4px">Q(√(2·E<sub>b</sub>/N₀)) = Q(√(2×${n(EbN0_lin, 4)})) = Q(${n(Math.sqrt(2 * EbN0_lin), 4)}) = <span class="val">${nb(Qfn(Math.sqrt(2 * EbN0_lin)))}</span></div>
+  </div>
+</div>
+
+<!-- §4 CHANNEL -->
+<div class="section" id="s4">
+  <div class="section-title">§4 — Channel Model: ${CH_LABEL[S.channel] || S.channel}</div>
+  ${chEqs}
+</div>
+
+<!-- §5 BER -->
+<div class="section" id="s5">
+  <div class="section-title">§5 — Bit Error Rate Analysis</div>
+  <div class="eq-block">
+    <div class="eq-label">Current operating point</div>
+    <div class="eq">E<sub>s</sub>/N₀ = ${n(S.snrDb, 1)} dB&nbsp;&nbsp; E<sub>b</sub>/N₀ = ${n(EbN0_dB, 2)} dB</div>
+  </div>
+  <div class="eq-block">
+    <div class="eq-label">Theoretical BER — ${S.mod}${S.fec !== 'none' ? ' + ' + S.fec + ' coding' : ''}</div>
+    <div class="eq">BER<sub>theoretical</sub> = <span class="val">${nb(ber_th)}</span>${S.fec !== 'none' ? ' (after FEC decoding)' : ''}</div>
+    ${S.fec !== 'none' ? `<div class="eq" style="margin-top:4px">Uncoded BER (channel level) = <span class="val">${nb(ber_th_uncoded)}</span></div>` : ''}
+  </div>
+  <div class="eq-block">
+    <div class="eq-label">Simulated BER (Monte Carlo)</div>
+    <div class="eq">BER<sub>sim</sub> = errors / total_bits = ${isNaN(S.numErrors) ? '—' : S.numErrors.toLocaleString()} / ${isNaN(S.numBits) ? '—' : S.numBits.toLocaleString()} = <span class="val">${nb(S.berSim)}</span></div>
+  </div>
+  <table class="result-table">
+    <tr><th>Modulation</th><th>Theoretical BER @ ${n(S.snrDb, 1)} dB Es/N₀</th><th>Required SNR (BER=10⁻³)</th><th>Required SNR (BER=10⁻⁵)</th></tr>
+    ${['BPSK', 'QPSK', '8PSK', '16QAM', '64QAM', '256QAM', '1024QAM'].map(m => `
+    <tr ${m === S.mod ? 'style="background:#e8f4fb;font-weight:700"' : ''}><td class="key">${m}</td><td class="num">${nb(theorBER(m, S.snrDb))}</td><td class="num">${n(requiredSNR(m, 1e-3), 1)} dB</td><td class="num">${n(requiredSNR(m, 1e-5), 1)} dB</td></tr>`).join('')}
+  </table>
+</div>
+
+<!-- §6 SHANNON -->
+<div class="section" id="s6">
+  <div class="section-title">§6 — Shannon Information Theory &amp; Capacity</div>
+  <div class="eq-block">
+    <div class="eq-label">Shannon–Hartley channel capacity (AWGN)</div>
+    <div class="eq">C = log₂(1 + SNR) = log₂(1 + ${n(snr_lin, 3)}) = <span class="val">${n(capacity, 5)} bits/channel use</span></div>
+  </div>
+  <div class="eq-block">
+    <div class="eq-label">Minimum SNR required for error-free comms at this modulation rate</div>
+    <div class="eq">SNR<sub>min</sub> = 2<sup>k</sup> − 1 = 2<sup>${k}</sup> − 1 = ${shannonMinLin}&nbsp;&nbsp; → <span class="val">${n(shannonMinDB, 2)} dB</span></div>
+  </div>
+  <div class="eq-block">
+    <div class="eq-label">SNR margin (how far above Shannon limit we are operating)</div>
+    <div class="eq">Margin = E<sub>s</sub>/N₀ − SNR<sub>min</sub> = ${n(S.snrDb, 1)} − ${n(shannonMinDB, 2)} = <span class="${snrMargin > 3 ? 'good' : snrMargin > 0 ? 'warn' : 'bad'}">${n(snrMargin, 2)} dB</span></div>
+    ${snrMargin < 0 ? '<div class="note">⚠ Operating BELOW Shannon limit — reliable communication is theoretically impossible at this rate. Need either higher SNR or a lower-order modulation.</div>' :
+          snrMargin < 3 ? '<div class="note">⚠ Less than 3 dB above Shannon limit — very tight margin. Practical systems need ≥ 3 dB headroom for FEC overhead.</div>' :
+            '<div class="note">✓ Comfortable margin above Shannon limit — reliable communication is theoretically possible.</div>'}
+  </div>
+  <div class="eq-block">
+    <div class="eq-label">Shannon capacity vs spectral efficiency of current system</div>
+    <div class="eq">Shannon C = ${n(capacity, 3)} b/use&nbsp;&nbsp; vs&nbsp;&nbsp; System η = ${n(spEff, 3)} b/s/Hz&nbsp;&nbsp; (gap = ${n(capacity - spEff, 3)} b/s/Hz)</div>
+  </div>
+</div>
+
+<!-- §7 FEC (conditional) -->
+${fecSection}
+
+<!-- PAPR -->
+<div class="section" id="s8">
+  <div class="section-title">§${S.fec !== 'none' ? 8 : 7} — PAPR (Peak-to-Average Power Ratio)</div>
+  <div class="eq-block">
+    <div class="eq-label">PAPR definition</div>
+    <div class="eq">PAPR = max|s[n]|² / E[|s[n]|²]&nbsp;&nbsp;&nbsp;&nbsp; PAPR<sub>dB</sub> = 10·log₁₀(PAPR)</div>
+  </div>
+  <div class="eq-block">
+    <div class="eq-label">Measured PAPR from current simulation</div>
+    <div class="eq">PAPR<sub>measured</sub> = <span class="${isNaN(S.papr) ? '' : (S.papr < 8 ? 'good' : S.papr < 12 ? 'warn' : 'bad')}">${nd(S.papr)}</span></div>
+  </div>
+  <div class="eq-block">
+    <div class="eq-label">Theoretical maximum PAPR (all subcarriers add coherently)</div>
+    <div class="eq">PAPR<sub>max</sub> = N = ${N}&nbsp;&nbsp; → 10·log₁₀(${N}) = <span class="val">${n(paprTheo, 2)} dB</span></div>
+  </div>
+  <div class="eq-block">
+    <div class="eq-label">CCDF: Probability that PAPR exceeds threshold γ (approximate)</div>
+    <div class="eq">Pr[PAPR > γ] ≈ 1 − (1 − e<sup>−γ</sup>)<sup>N</sup>&nbsp;&nbsp; for large N (Gaussian approximation)</div>
+  </div>
+  <div class="note">⚠ High PAPR requires power amplifiers to operate well below saturation (back-off), reducing power efficiency. This is a fundamental OFDM weakness vs single-carrier systems. Typical LTE PAPR ≈ 10–12 dB requires ~8–10 dB PA back-off.</div>
+</div>
+
+<!-- SPECTRAL EFFICIENCY -->
+<div class="section" id="s9">
+  <div class="section-title">§${S.fec !== 'none' ? 9 : 8} — Spectral Efficiency</div>
+  <div class="eq-block">
+    <div class="eq-label">CP overhead fraction</div>
+    <div class="eq">η<sub>cp</sub> = N<sub>cp</sub> / (N + N<sub>cp</sub>) = ${par.Ncp} / (${N} + ${par.Ncp}) = ${par.Ncp} / ${N + par.Ncp} = <span class="val">${n(overhead, 5)}</span> = <span class="val">${n(overhead * 100, 2)}%</span></div>
+  </div>
+  <div class="eq-block">
+    <div class="eq-label">Spectral efficiency (bits per second per Hertz)</div>
+    <div class="eq">η = (N<sub>data</sub>/N) × k × (1 − η<sub>cp</sub>)</div>
+    <div class="eq">= (${par.Ndata}/${N}) × ${k} × (1 − ${n(overhead, 4)})</div>
+    <div class="eq">= ${n(par.Ndata / N, 4)} × ${k} × ${n(1 - overhead, 4)} = <span class="val">${n(spEff, 5)} bits/s/Hz</span></div>
+  </div>
+  ${S.fec !== 'none' ? `<div class="eq-block">
+    <div class="eq-label">Effective spectral efficiency after FEC rate</div>
+    <div class="eq">η<sub>net</sub> = η × R<sub>c</sub> = ${n(spEff, 4)} × ${S.fec === 'rep3' ? '1/3' : '1/2'} = <span class="val">${n(spEff * (S.fec === 'rep3' ? 1 / 3 : 0.5), 5)} bits/s/Hz</span></div>
+  </div>`: ''}
+  <div class="eq-block">
+    <div class="eq-label">Bits per OFDM symbol (total payload)</div>
+    <div class="eq">bits/sym = N<sub>data</sub> × k = ${par.Ndata} × ${k} = <span class="val">${par.Ndata * k} bits</span></div>
+  </div>
+</div>
+
+<!-- FULL REFERENCE TABLE -->
+<div class="section" id="s10">
+  <div class="section-title">§${S.fec !== 'none' ? 10 : 9} — Full Parameter Reference Table</div>
+  <table class="result-table">
+    <tr><th>Parameter</th><th>Symbol</th><th>Value</th><th>Unit</th></tr>
+    <tr><td class="key">Modulation</td><td>—</td><td class="num">${S.mod}</td><td>—</td></tr>
+    <tr><td class="key">Bits per symbol</td><td>k</td><td class="num">${k}</td><td>bits/sym</td></tr>
+    <tr><td class="key">Constellation size</td><td>M</td><td class="num">${M}</td><td>points</td></tr>
+    <tr><td class="key">FFT size</td><td>N</td><td class="num">${N}</td><td>subcarriers</td></tr>
+    <tr><td class="key">Cyclic prefix length</td><td>N<sub>cp</sub></td><td class="num">${par.Ncp}</td><td>samples</td></tr>
+    <tr><td class="key">Guard band subcarriers</td><td>N<sub>guard</sub></td><td class="num">${par.Nguard} each side</td><td>—</td></tr>
+    <tr><td class="key">Data subcarriers</td><td>N<sub>data</sub></td><td class="num">${par.Ndata}</td><td>—</td></tr>
+    <tr><td class="key">CP overhead</td><td>η<sub>cp</sub></td><td class="num">${n(overhead * 100, 2)}%</td><td>—</td></tr>
+    <tr><td class="key">Es/N₀ (SNR)</td><td>E<sub>s</sub>/N₀</td><td class="num">${n(S.snrDb, 2)}</td><td>dB</td></tr>
+    <tr><td class="key">Eb/N₀</td><td>E<sub>b</sub>/N₀</td><td class="num">${n(EbN0_dB, 3)}</td><td>dB</td></tr>
+    <tr><td class="key">SNR (linear)</td><td>SNR</td><td class="num">${n(snr_lin, 5)}</td><td>—</td></tr>
+    <tr><td class="key">Noise std dev (per I/Q)</td><td>σ</td><td class="num">${n(sigma_n, 7)}</td><td>—</td></tr>
+    <tr><td class="key">Channel model</td><td>—</td><td class="num">${CH_LABEL[S.channel] || S.channel}</td><td>—</td></tr>
+    ${S.channel === 'cfo' ? `<tr><td class="key">CFO amount</td><td>ε</td><td class="num">${n(S.cfoAmount, 3)}·Δf</td><td>—</td></tr>
+    <tr><td class="key">Sinc attenuation</td><td>|sinc(πε)|</td><td class="num">${n(sinc_att, 5)}</td><td>—</td></tr>` : ''}
+    ${S.channel === 'doppler' ? `<tr><td class="key">Doppler normalized</td><td>f<sub>d</sub>·T</td><td class="num">${n(S.dopplerFd, 4)}</td><td>—</td></tr>` : ''}
+    ${S.channel === 'phase_noise' ? `<tr><td class="key">Phase noise std dev</td><td>σ<sub>φ</sub></td><td class="num">${n(sigma_ph, 5)} rad = ${n(sigma_ph * 180 / Math.PI, 2)}°</td><td>—</td></tr>` : ''}
+    <tr><td class="key">FEC scheme</td><td>—</td><td class="num">${S.fec}</td><td>—</td></tr>
+    <tr><td class="key">BER theoretical</td><td>P<sub>b</sub></td><td class="num">${nb(ber_th)}</td><td>—</td></tr>
+    <tr><td class="key">BER simulated</td><td>P̂<sub>b</sub></td><td class="num">${nb(S.berSim)}</td><td>—</td></tr>
+    <tr><td class="key">Bit errors / Total bits</td><td>—</td><td class="num">${isNaN(S.numErrors) ? '—' : S.numErrors.toLocaleString()} / ${isNaN(S.numBits) ? '—' : S.numBits.toLocaleString()}</td><td>—</td></tr>
+    <tr><td class="key">Shannon capacity</td><td>C</td><td class="num">${n(capacity, 5)}</td><td>bits/use</td></tr>
+    <tr><td class="key">Shannon min SNR for ${S.mod}</td><td>SNR<sub>min</sub></td><td class="num">${n(shannonMinDB, 3)}</td><td>dB</td></tr>
+    <tr><td class="key">SNR margin above Shannon</td><td>—</td><td class="num" style="color:${snrMargin > 3 ? '#15803d' : snrMargin > 0 ? '#b45309' : '#b91c1c'}">${n(snrMargin, 2)}</td><td>dB</td></tr>
+    <tr><td class="key">Spectral efficiency</td><td>η</td><td class="num">${n(spEff, 5)}</td><td>bits/s/Hz</td></tr>
+    <tr><td class="key">PAPR (measured)</td><td>PAPR</td><td class="num">${nd(S.papr)}</td><td>—</td></tr>
+    <tr><td class="key">PAPR (theoretical max)</td><td>10·log₁₀(N)</td><td class="num">${n(paprTheo, 2)}</td><td>dB</td></tr>
+  </table>
+</div>
+
+<hr>
+<div style="font-size:11px;color:#8a9ab0;text-align:center;margin-top:12px">
+  OFDM Signal Simulator — Math Report · ${new Date().toLocaleDateString()} · github.com/MiladZarour/OFDM_Modulation_Naji
+</div>
+
+</div>
+</body>
+</html>`;
+
+      const w = window.open('', '_blank');
+      if (w) { w.document.write(html); w.document.close(); }
+      else alert('Allow pop-ups for this page to view the Math Report.');
+    }
+
+    // ════════════════════════════════════════════════════════
+    //  FOURIER TRANSFORM PLAYGROUND
+    // ════════════════════════════════════════════════════════
+
+    const FT = {
+      N: 512,
+      signal: new Float64Array(512),
+      amps:   new Float64Array(512),
+      phas:   new Float64Array(512),
+      drawMode: false,
+      drawing: false,
+      lastX: -1, lastY: 0,
+      animating: false,
+      animId: null,
+      buildStep: 0,
+      preset: 'sine',
+      NUM_H: 28,      // harmonics shown in synthesizer
+      MAX_AMP: 1.5,   // max slider amplitude
+      synthDrag: false,
+      synthDragH: -1
+    };
+
+    function ftCleanup() {
+      FT.animating = false;
+      if (FT.animId) { cancelAnimationFrame(FT.animId); FT.animId = null; }
+      const d = document.getElementById('ftDiv');
+      if (d) d.remove();
+      const s = document.getElementById('ftStyle');
+      if (s) s.remove();
+      const cv = document.getElementById('cvDemo');
+      if (cv) cv.style.display = '';
+    }
+
+    function drawFourierPlayground() {
+      document.getElementById('demoTitle').textContent = 'Fourier Transform Playground';
+      document.getElementById('demoDesc').textContent =
+        'X(f) = \u222b x(t)\u00b7e\u207b\u02b2\u00b2\u03c0\u1da0\u1d57 dt  \u2014  Draw a signal or drag harmonic bars to synthesize any waveform. Watch the spectrum update live.';
+
+      const cv = document.getElementById('cvDemo');
+      cv.style.display = 'none';
+      ftCleanup(); // remove any previous instance
+
+      // Inject playground HTML
+      const div = document.createElement('div');
+      div.id = 'ftDiv';
+      div.style.cssText = 'flex:1;min-height:0;display:flex;flex-direction:column;gap:6px;overflow:hidden;';
+      div.innerHTML = `
+        <div style="display:flex;gap:5px;flex-shrink:0;flex-wrap:wrap;align-items:center">
+          <span style="font-size:9px;color:var(--muted);text-transform:uppercase;font-weight:700;margin-right:2px">Preset:</span>
+          <button class="ft-pb" id="ftb-sine"     onclick="ftPreset('sine')">🌊 Sine</button>
+          <button class="ft-pb" id="ftb-square"   onclick="ftPreset('square')">▬ Square</button>
+          <button class="ft-pb" id="ftb-triangle" onclick="ftPreset('triangle')">△ Triangle</button>
+          <button class="ft-pb" id="ftb-sawtooth" onclick="ftPreset('sawtooth')">⟋ Sawtooth</button>
+          <button class="ft-pb" id="ftb-impulse"  onclick="ftPreset('impulse')">↑ Impulse</button>
+          <button class="ft-pb" id="ftb-multi"    onclick="ftPreset('multi')">≋ Multi-tone</button>
+          <button class="ft-pb" id="ftb-noise"    onclick="ftPreset('noise')">≈ Noise</button>
+          <span style="width:1px;height:18px;background:var(--border);margin:0 3px;flex-shrink:0"></span>
+          <button class="ft-pb" id="ftDrawBtn"  onclick="ftToggleDraw()">✏ Draw</button>
+          <button class="ft-pb" id="ftBuildBtn" onclick="ftBuildUp()">▶ Build Up</button>
+          <button class="ft-pb" id="ftClearBtn" onclick="ftClear()">✕ Clear</button>
+          <span id="ftHint" style="font-size:9px;color:var(--amber);margin-left:4px"></span>
+        </div>
+        <div style="display:flex;gap:6px;flex:1;min-height:0">
+          <div style="flex:1;display:flex;flex-direction:column;min-height:0">
+            <div style="font-size:9px;font-weight:700;letter-spacing:0.1em;color:var(--accent);text-transform:uppercase;margin-bottom:3px">
+              Time Domain  x(t)  &nbsp;<span id="ftDrawHint" style="color:var(--muted);font-weight:400;font-size:8px"></span>
+            </div>
+            <canvas id="ftTime" style="flex:1;min-height:0;width:100%;border-radius:4px;background:#040d1a;cursor:default"></canvas>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;min-height:0">
+            <div style="font-size:9px;font-weight:700;letter-spacing:0.1em;color:#a78bfa;text-transform:uppercase;margin-bottom:3px">Frequency Spectrum  |X(f)|</div>
+            <canvas id="ftSpec" style="flex:1;min-height:0;width:100%;border-radius:4px;background:#040d1a"></canvas>
+          </div>
+        </div>
+        <div style="flex-shrink:0">
+          <div style="font-size:9px;font-weight:700;letter-spacing:0.1em;color:var(--green);text-transform:uppercase;margin-bottom:3px">
+            Harmonic Synthesizer — drag bars to set amplitude of each sine component &nbsp;
+            <span id="ftSynthInfo" style="color:var(--muted);font-weight:400"></span>
+          </div>
+          <canvas id="ftSynth" style="width:100%;height:80px;display:block;border-radius:4px;background:#040d1a;cursor:ns-resize"></canvas>
+        </div>`;
+      document.getElementById('demoModal').appendChild(div);
+
+      // Styles for preset buttons
+      const style = document.createElement('style');
+      style.id = 'ftStyle';
+      style.textContent = `
+        .ft-pb { width:auto;margin:0;padding:3px 9px;font-size:10px;font-weight:700;
+                 text-transform:uppercase;letter-spacing:0.04em; }
+        .ft-pb.ft-active { background:rgba(0,212,255,0.22);border-color:var(--accent);color:var(--accent); }
+        .ft-pb.ft-draw   { background:rgba(239,68,68,0.18);border-color:var(--red);color:var(--red); }
+        .ft-pb.ft-build  { background:rgba(16,185,129,0.18);border-color:var(--green);color:var(--green); }
+      `;
+      document.head.appendChild(style);
+
+      // Init state
+      FT.drawMode = false; FT.animating = false;
+      if (FT.animId) { cancelAnimationFrame(FT.animId); FT.animId = null; }
+      FT.signal = new Float64Array(FT.N);
+      FT.amps   = new Float64Array(FT.N);
+      FT.phas   = new Float64Array(FT.N);
+
+      ftPreset('sine');
+      ftSetupEvents();
+    }
+
+    // ─ Presets ──────────────────────────────────────────
+    function ftPreset(type) {
+      FT.preset = type;
+      FT.animating = false;
+      if (FT.animId) { cancelAnimationFrame(FT.animId); FT.animId = null; }
+      document.getElementById('ftBuildBtn').className = 'ft-pb';
+      document.querySelectorAll('.ft-pb[id^="ftb-"]').forEach(b => b.classList.remove('ft-active'));
+      const btn = document.getElementById('ftb-' + type);
+      if (btn) btn.classList.add('ft-active');
+
+      const N = FT.N, sig = FT.signal;
+      const cyc = 3; // cycles to show
+      for (let i = 0; i < N; i++) {
+        const t = i / N;
+        const ph = 2 * Math.PI * cyc * t;
+        if      (type === 'sine')     sig[i] = Math.sin(ph);
+        else if (type === 'square')   sig[i] = Math.sign(Math.sin(ph));
+        else if (type === 'triangle') { const p = (cyc*t) % 1; sig[i] = p < 0.5 ? 4*p-1 : 3-4*p; }
+        else if (type === 'sawtooth') sig[i] = 2*((cyc*t) % 1) - 1;
+        else if (type === 'impulse')  sig[i] = (i === Math.round(N/8) || i === Math.round(3*N/8)) ? 1 : 0;
+        else if (type === 'multi')    sig[i] = 0.6*Math.sin(ph) + 0.4*Math.sin(3*ph) + 0.25*Math.sin(5*ph) + 0.15*Math.sin(7*ph);
+        else if (type === 'noise')    sig[i] = Math.random()*2 - 1;
+      }
+      ftAnalyze();
+      ftRender();
+    }
+
+    // ─ Analyze: signal → FFT → amps/phas ────────────────
+    function ftAnalyze() {
+      const N = FT.N;
+      const re = Float64Array.from(FT.signal), im = new Float64Array(N);
+      fft(re, im, false);
+      for (let k = 0; k < N; k++) {
+        FT.amps[k] = Math.sqrt(re[k]*re[k] + im[k]*im[k]) * 2 / N;
+        FT.phas[k] = Math.atan2(im[k], re[k]);
+      }
+    }
+
+    // ─ Synthesize: amps/phas → signal ───────────────────
+    function ftSynthesize() {
+      const N = FT.N, NH = FT.NUM_H;
+      for (let i = 0; i < N; i++) {
+        let s = 0;
+        for (let k = 1; k <= NH; k++) s += FT.amps[k] * Math.cos(2*Math.PI*k*i/N + FT.phas[k]);
+        FT.signal[i] = s;
+      }
+    }
+
+    // ─ Render all 3 canvases ─────────────────────────────
+    function ftRender() {
+      ftRenderTime();
+      ftRenderSpec();
+      ftRenderSynth();
+    }
+
+    function ftRenderTime() {
+      const el = document.getElementById('ftTime');
+      if (!el) return;
+      const R = window.devicePixelRatio||1;
+      const rect = el.getBoundingClientRect();
+      el.width = rect.width*R; el.height = rect.height*R;
+      const ctx = el.getContext('2d'); ctx.scale(R,R);
+      const W = rect.width, H = rect.height;
+      ctx.fillStyle='#040d1a'; ctx.fillRect(0,0,W,H);
+
+      const sig = FT.signal, N = FT.N;
+      const padL=6,padR=6,padT=8,padB=8;
+      const iW=W-padL-padR, iH=H-padT-padB;
+
+      // Grid
+      ctx.strokeStyle='rgba(21,45,72,0.8)'; ctx.lineWidth=0.5;
+      for (let i=1;i<8;i++){const x=padL+i/8*iW;ctx.beginPath();ctx.moveTo(x,padT);ctx.lineTo(x,padT+iH);ctx.stroke();}
+      // Zero line
+      ctx.strokeStyle='rgba(100,160,200,0.25)'; ctx.lineWidth=0.8;
+      ctx.beginPath(); ctx.moveTo(padL,padT+iH/2); ctx.lineTo(padL+iW,padT+iH/2); ctx.stroke();
+
+      // Find max for scaling
+      let mx=0; for(let i=0;i<N;i++) mx=Math.max(mx,Math.abs(sig[i]));
+      if(mx<0.01) mx=1; mx*=1.15;
+
+      // Signal
+      const grad = ctx.createLinearGradient(padL,0,padL+iW,0);
+      grad.addColorStop(0,'#00d4ff'); grad.addColorStop(1,'#a78bfa');
+      ctx.strokeStyle = FT.drawMode ? '#ef4444' : grad;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      for(let i=0;i<N;i++) {
+        const x=padL+i/N*iW, y=padT+iH/2-(sig[i]/mx)*(iH/2*0.9);
+        i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+      }
+      ctx.stroke();
+
+      // Axis labels
+      ctx.fillStyle='rgba(100,160,200,0.5)'; ctx.font='8px monospace';
+      ctx.fillText('t=0',padL+2,H-2); ctx.fillText('t=T',W-28,H-2);
+      ctx.fillText(`${mx.toFixed(2)}`,padL+2,padT+9);
+      if(FT.drawMode){
+        ctx.fillStyle='rgba(239,68,68,0.8)'; ctx.font='bold 9px monospace';
+        ctx.fillText('DRAW MODE — click & drag',padL+iW/2-55,padT+10);
+      }
+    }
+
+    function ftRenderSpec() {
+      const el = document.getElementById('ftSpec');
+      if (!el) return;
+      const R = window.devicePixelRatio||1;
+      const rect = el.getBoundingClientRect();
+      el.width = rect.width*R; el.height = rect.height*R;
+      const ctx = el.getContext('2d'); ctx.scale(R,R);
+      const W = rect.width, H = rect.height;
+      ctx.fillStyle='#040d1a'; ctx.fillRect(0,0,W,H);
+
+      const N=FT.N, NH=Math.min(FT.N/2, 80);
+      const padL=8,padR=6,padT=8,padB=18;
+      const iW=W-padL-padR, iH=H-padT-padB;
+
+      // Grid
+      ctx.strokeStyle='rgba(21,45,72,0.7)'; ctx.lineWidth=0.5;
+      for(let i=1;i<8;i++){const y=padT+i/8*iH;ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(padL+iW,y);ctx.stroke();}
+
+      // Find max amplitude
+      let maxA=0;
+      for(let k=1;k<NH;k++) maxA=Math.max(maxA,FT.amps[k]);
+      if(maxA<0.001) maxA=0.001;
+
+      // Draw bars
+      const barW = iW/NH;
+      for(let k=1;k<NH;k++) {
+        const norm = FT.amps[k]/maxA;
+        const bH   = norm*iH*0.9;
+        const x    = padL+(k-1)*barW;
+        const hue  = 240 - k/NH*60; // blue to cyan
+        const alpha= 0.5+norm*0.5;
+        ctx.fillStyle = `hsla(${hue},90%,65%,${alpha})`;
+        ctx.fillRect(x+0.5, padT+iH-bH, Math.max(1,barW-1), bH);
+
+        // Highlight harmonics that match our synthesizer range
+        if(k <= FT.NUM_H && FT.amps[k] > 0.05*maxA) {
+          ctx.strokeStyle=`hsla(${hue},90%,80%,0.9)`;
+          ctx.lineWidth=0.8;
+          ctx.strokeRect(x+0.5,padT+iH-bH,Math.max(1,barW-1),bH);
+        }
+      }
+
+      // Axis
+      ctx.strokeStyle='rgba(100,160,200,0.3)'; ctx.lineWidth=0.5;
+      ctx.beginPath(); ctx.moveTo(padL,padT+iH); ctx.lineTo(padL+iW,padT+iH); ctx.stroke();
+
+      ctx.fillStyle='rgba(100,160,200,0.6)'; ctx.font='8px monospace';
+      ctx.fillText('DC',padL+1,padT+iH-2);
+      ctx.fillText(`f=${NH}`,padL+iW-22,H-2);
+      ctx.fillText('Frequency →',padL+iW/2-28,H-2);
+
+      // Dominant frequency label
+      let domK=1; for(let k=2;k<NH;k++) if(FT.amps[k]>FT.amps[domK]) domK=k;
+      if(FT.amps[domK]>0.01) {
+        const dx=padL+(domK-1)*barW+barW/2;
+        ctx.fillStyle='rgba(0,212,255,0.9)'; ctx.font='bold 9px monospace';
+        ctx.fillText(`f${domK}`,dx-7,padT+5);
+      }
+    }
+
+    function ftRenderSynth() {
+      const el = document.getElementById('ftSynth');
+      if (!el) return;
+      const R = window.devicePixelRatio||1;
+      const rect = el.getBoundingClientRect();
+      el.width = rect.width*R; el.height = rect.height*R;
+      const ctx = el.getContext('2d'); ctx.scale(R,R);
+      const W = rect.width, H = rect.height;
+      ctx.fillStyle='#040d1a'; ctx.fillRect(0,0,W,H);
+
+      const NH=FT.NUM_H, padL=4, padR=4, padT=4, padB=16;
+      const iW=W-padL-padR, iH=H-padT-padB;
+      const barW=iW/NH;
+
+      // Zero line
+      ctx.strokeStyle='rgba(100,160,200,0.15)'; ctx.lineWidth=0.5;
+      ctx.beginPath(); ctx.moveTo(padL,padT+iH); ctx.lineTo(padL+iW,padT+iH); ctx.stroke();
+
+      for(let k=1;k<=NH;k++) {
+        const amp = Math.min(FT.MAX_AMP, Math.max(0, FT.amps[k]||0));
+        const norm = amp/FT.MAX_AMP;
+        const x = padL+(k-1)*barW;
+        const bH = norm*iH;
+
+        // Background track
+        ctx.fillStyle='rgba(21,45,72,0.6)';
+        ctx.fillRect(x+1,padT,barW-2,iH);
+
+        // Filled bar
+        const hue = 140 - k/NH*60; // green → teal
+        const grad=ctx.createLinearGradient(0,padT,0,padT+iH);
+        grad.addColorStop(0,`hsla(${hue},90%,60%,0.9)`);
+        grad.addColorStop(1,`hsla(${hue},70%,40%,0.5)`);
+        ctx.fillStyle = grad;
+        ctx.fillRect(x+1, padT+iH-bH, barW-2, bH);
+
+        // Label
+        ctx.fillStyle = amp>0.05 ? `hsl(${hue},90%,70%)` : 'rgba(100,130,160,0.4)';
+        ctx.font = barW > 14 ? '8px monospace' : '6px monospace';
+        ctx.textAlign='center';
+        ctx.fillText(`H${k}`, x+barW/2, H-3);
+        ctx.textAlign='left';
+
+        // Value on top of bar if significant
+        if(amp > 0.05 && bH > 12) {
+          ctx.fillStyle='rgba(255,255,255,0.8)'; ctx.font='7px monospace'; ctx.textAlign='center';
+          ctx.fillText(amp.toFixed(2), x+barW/2, padT+iH-bH-2);
+          ctx.textAlign='left';
+        }
+      }
+
+      // Hint
+      ctx.fillStyle='rgba(100,160,200,0.4)'; ctx.font='7px monospace';
+      ctx.fillText('drag up/down to set harmonic amplitude',padL+2,padT+8);
+    }
+
+    // ─ Draw mode ────────────────────────────────────────
+    function ftToggleDraw() {
+      FT.drawMode = !FT.drawMode;
+      const btn = document.getElementById('ftDrawBtn');
+      if (FT.drawMode) {
+        btn.classList.add('ft-draw');
+        btn.textContent = '✏ Draw ON';
+        document.getElementById('ftTime').style.cursor = 'crosshair';
+      } else {
+        btn.classList.remove('ft-draw');
+        btn.textContent = '✏ Draw';
+        document.getElementById('ftTime').style.cursor = 'default';
+      }
+    }
+
+    // ─ Build-up animation ────────────────────────────────
+    function ftBuildUp() {
+      if (FT.animating) {
+        FT.animating = false;
+        if(FT.animId){cancelAnimationFrame(FT.animId);FT.animId=null;}
+        document.getElementById('ftBuildBtn').className='ft-pb';
+        document.getElementById('ftBuildBtn').textContent='▶ Build Up';
+        return;
+      }
+      // Store original amps from current analysis
+      FT.animating = true;
+      FT.buildStep = 1;
+      document.getElementById('ftBuildBtn').className='ft-pb ft-build';
+      document.getElementById('ftBuildBtn').textContent='⏹ Stop';
+
+      // Save original amps
+      const origAmps = FT.amps.slice();
+      const origPhas = FT.phas.slice();
+
+      function step() {
+        if (!FT.animating || !document.getElementById('ftSynth')) {
+          FT.animating=false; return;
+        }
+        // Zero all, then set harmonics up to buildStep
+        FT.amps.fill(0); FT.phas.fill(0);
+        for(let k=1;k<=FT.buildStep&&k<=FT.NUM_H;k++) {
+          FT.amps[k]=origAmps[k]; FT.phas[k]=origPhas[k];
+        }
+        ftSynthesize();
+        ftRender();
+
+        const info = document.getElementById('ftSynthInfo');
+        if(info) info.textContent=`Adding harmonic H${FT.buildStep} of ${FT.NUM_H}`;
+
+        FT.buildStep++;
+        if(FT.buildStep > FT.NUM_H) {
+          FT.animating=false;
+          FT.amps.set(origAmps); FT.phas.set(origPhas);
+          ftSynthesize(); ftRender();
+          document.getElementById('ftBuildBtn').className='ft-pb';
+          document.getElementById('ftBuildBtn').textContent='▶ Build Up';
+          const info2=document.getElementById('ftSynthInfo');
+          if(info2) info2.textContent='All harmonics added';
+          return;
+        }
+        FT.animId = setTimeout(step, 200);
+      }
+      step();
+    }
+
+    function ftClear() {
+      FT.signal.fill(0); FT.amps.fill(0); FT.phas.fill(0);
+      document.querySelectorAll('.ft-pb[id^="ftb-"]').forEach(b=>b.classList.remove('ft-active'));
+      ftRender();
+    }
+
+    // ─ Event setup ──────────────────────────────────────
+    function ftSetupEvents() {
+      const timeCv = document.getElementById('ftTime');
+      const synthCv = document.getElementById('ftSynth');
+      if (!timeCv || !synthCv) return;
+
+      // Time canvas — draw mode
+      function getTimePt(e) {
+        const r=timeCv.getBoundingClientRect();
+        const cx=(e.clientX||e.touches[0].clientX)-r.left;
+        const cy=(e.clientY||e.touches[0].clientY)-r.top;
+        const idx=Math.round((cx/r.width)*FT.N);
+        const amp=(0.5-cy/r.height)*2;
+        return {idx:Math.max(0,Math.min(FT.N-1,idx)), amp:Math.max(-1.5,Math.min(1.5,amp))};
+      }
+
+      function timeDraw(e) {
+        if(!FT.drawMode||!FT.drawing) return;
+        const {idx,amp}=getTimePt(e);
+        // Interpolate from last point to avoid gaps
+        if(FT.lastX>=0&&Math.abs(idx-FT.lastX)>1) {
+          const steps=Math.abs(idx-FT.lastX);
+          for(let s=0;s<=steps;s++) {
+            const ii=Math.round(FT.lastX+s*(idx-FT.lastX)/steps);
+            const aa=FT.lastY+s*(amp-FT.lastY)/steps;
+            if(ii>=0&&ii<FT.N) FT.signal[ii]=aa;
+          }
+        } else {
+          FT.signal[idx]=amp;
+        }
+        FT.lastX=idx; FT.lastY=amp;
+        ftAnalyze(); ftRender();
+        e.preventDefault();
+      }
+
+      timeCv.addEventListener('mousedown', e=>{
+        if(!FT.drawMode) return;
+        FT.drawing=true; FT.lastX=-1;
+        timeDraw(e);
+      });
+      timeCv.addEventListener('mousemove', timeDraw);
+      timeCv.addEventListener('mouseup',  ()=>{ FT.drawing=false; FT.lastX=-1; });
+      timeCv.addEventListener('mouseleave',()=>{ FT.drawing=false; FT.lastX=-1; });
+      timeCv.addEventListener('touchstart',e=>{if(FT.drawMode){FT.drawing=true;FT.lastX=-1;timeDraw(e);}},{passive:false});
+      timeCv.addEventListener('touchmove', timeDraw,{passive:false});
+      timeCv.addEventListener('touchend', ()=>{FT.drawing=false;FT.lastX=-1;});
+
+      // Synth canvas — drag bars
+      function getSynthH(e) {
+        const r=synthCv.getBoundingClientRect();
+        const cx=(e.clientX||e.touches[0].clientX)-r.left;
+        const cy=(e.clientY||e.touches[0].clientY)-r.top;
+        const NH=FT.NUM_H;
+        const barW=r.width/NH;
+        const k=Math.floor(cx/barW)+1;
+        const amp=FT.MAX_AMP*(1-cy/r.height);
+        return {k:Math.max(1,Math.min(NH,k)), amp:Math.max(0,Math.min(FT.MAX_AMP,amp))};
+      }
+
+      function synthDrag(e) {
+        if(!FT.synthDrag) return;
+        const {k,amp}=getSynthH(e);
+        FT.amps[k]=amp; FT.phas[k]=0; // set phase to 0 for synthesizer mode
+        ftSynthesize();
+        ftRender();
+        const info=document.getElementById('ftSynthInfo');
+        if(info) info.textContent=`H${k} = ${amp.toFixed(3)}`;
+        e.preventDefault();
+      }
+
+      synthCv.addEventListener('mousedown', e=>{
+        FT.synthDrag=true;
+        // Disable draw mode when using synth
+        if(FT.drawMode) ftToggleDraw();
+        synthDrag(e);
+      });
+      synthCv.addEventListener('mousemove', synthDrag);
+      synthCv.addEventListener('mouseup',  ()=>{ FT.synthDrag=false; });
+      synthCv.addEventListener('mouseleave',()=>{ FT.synthDrag=false; });
+      synthCv.addEventListener('touchstart',e=>{FT.synthDrag=true;synthDrag(e);},{passive:false});
+      synthCv.addEventListener('touchmove', synthDrag,{passive:false});
+      synthCv.addEventListener('touchend', ()=>{FT.synthDrag=false;});
+
+      // Redraw on window resize
+      window._ftResizeHandler = ()=>ftRender();
+      window.addEventListener('resize', window._ftResizeHandler);
+    }
+
+    // ════════════════════════════════════════════════════════
+    //  DRAW ALL
+    // ════════════════════════════════════════════════════════
+
+    function drawAll() {
+      drawConstellation();
+      drawSpectrum();
+      drawTimeDomain();
+      drawBERCurve();
+      drawModComparison();
+      runImageDemo();
+      updateStats();
+      updateModInfo();
+    }
+
+    // ════════════════════════════════════════════════════════
+    //  BER SWEEP
+    // ════════════════════════════════════════════════════════
+
+    const SNR_SWEEP = [-5, -2, 0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 35, 40];
+
+    function startBERSweep() {
+      const S = STATE;
+      if (S.sweeping) return;
+      S.sweeping = true;
+      S.berSnr = [];
+      S.berSimArr = [];
+      S.berThArr = [];
+      S.sweepIdx = 0;
+      document.getElementById('btnBER').disabled = true;
+      document.getElementById('btnBER').textContent = '⏳ Sweeping…';
+      sweepStep();
+    }
+
+    function sweepStep() {
+      const S = STATE;
+      if (S.sweepIdx >= SNR_SWEEP.length) {
+        S.sweeping = false;
+        document.getElementById('btnBER').disabled = false;
+        document.getElementById('btnBER').textContent = '📈  BER Sweep (Full SNR Range)';
+        return;
+      }
+      const snr = SNR_SWEEP[S.sweepIdx];
+      const mod = buildMod(S.mod);
+      const N = FFT_SIZES[S.fftIdx];
+      const params = ofdmParams(N, S.cpRatio);
+      const chanSyms = Math.min(500, SYM_COUNTS[S.symIdx]) * params.Ndata;
+      let infoBits2;
+      if (S.fec === 'rep3') infoBits2 = new Uint8Array(Math.floor(chanSyms * mod.bps / 3));
+      else if (S.fec === 'conv') infoBits2 = new Uint8Array(Math.floor(chanSyms * mod.bps / 2) - 2);
+      else infoBits2 = new Uint8Array(chanSyms * mod.bps);
+      for (let i = 0; i < infoBits2.length; i++) infoBits2[i] = (Math.random() < 0.5) ? 1 : 0;
+      let txBits2;
+      if (S.fec === 'rep3') txBits2 = repEncode(infoBits2);
+      else if (S.fec === 'conv') txBits2 = convEncode(infoBits2);
+      else txBits2 = infoBits2;
+      const txSyms = modulate(txBits2, S.mod);
+      const rxSymsCh = txSyms.map(s => addSymbolNoise(s.I, s.Q, snr, S.channel));
+      const rxBitsCh = demodulate(rxSymsCh, S.mod);
+      let rxDecoded2;
+      if (S.fec === 'rep3') rxDecoded2 = repDecode(rxBitsCh);
+      else if (S.fec === 'conv') rxDecoded2 = convDecode(rxBitsCh, infoBits2.length);
+      else rxDecoded2 = rxBitsCh;
+      let err = 0;
+      const compareLen = Math.min(infoBits2.length, rxDecoded2.length);
+      for (let i = 0; i < compareLen; i++) if (infoBits2[i] !== rxDecoded2[i]) err++;
+      S.berSnr.push(snr);
+      S.berSimArr.push(err / compareLen);
+      S.berThArr.push(codedBER(S.fec, S.mod, snr));
+      S.sweepIdx++;
+      drawBERCurve();
+      setTimeout(sweepStep, 20);
+    }
+
+    // ════════════════════════════════════════════════════════
+    //  ANIMATE SNR SWEEP
+    // ════════════════════════════════════════════════════════
+
+    let animTimer = null;
+    function toggleAnimate() {
+      const S = STATE;
+      if (S.animating) {
+        S.animating = false;
+        clearTimeout(animTimer);
+        document.getElementById('btnAnimate').textContent = '🎬  Animate SNR Sweep';
+        return;
+      }
+      S.animating = true;
+      S.animSnr = -5;
+      document.getElementById('btnAnimate').textContent = '⏹  Stop Animation';
+      animStep();
+    }
+
+    function animStep() {
+      const S = STATE;
+      if (!S.animating) return;
+      S.snrDb = S.animSnr;
+      document.getElementById('snrSlider').value = S.animSnr;
+      document.getElementById('snrLabel').textContent = S.animSnr.toFixed(1) + ' dB';
+      runSim();
+      drawAll();
+      S.animSnr += 1;
+      if (S.animSnr > 40) S.animSnr = -5;
+      animTimer = setTimeout(animStep, 150);
+    }
+
+    // ════════════════════════════════════════════════════════
+    //  UI SETUP
+    // ════════════════════════════════════════════════════════
+
+    function bindUI() {
+      const S = STATE;
+
+      document.getElementById('modSelect').addEventListener('change', e => {
+        S.mod = e.target.value;
+        S.berSnr = []; S.berSimArr = []; S.berThArr = [];
+        runSim(); drawAll();
+      });
+
+      document.getElementById('snrSlider').addEventListener('input', e => {
+        S.snrDb = parseFloat(e.target.value);
+        document.getElementById('snrLabel').textContent = S.snrDb.toFixed(1) + ' dB';
+        runSim(); drawAll();
+      });
+
+      document.getElementById('chSelect').addEventListener('change', e => {
+        S.channel = e.target.value;
+        document.getElementById('cfoRow').style.display = S.channel === 'cfo' ? '' : 'none';
+        document.getElementById('dopplerRow').style.display = S.channel === 'doppler' ? '' : 'none';
+        runSim(); drawAll();
+      });
+
+      document.getElementById('cfoSlider').addEventListener('input', e => {
+        S.cfoAmount = parseFloat(e.target.value);
+        document.getElementById('cfoLabel').textContent = S.cfoAmount.toFixed(2);
+        runSim(); drawAll();
+      });
+
+      document.getElementById('dopplerSlider').addEventListener('input', e => {
+        S.dopplerFd = parseFloat(e.target.value);
+        document.getElementById('dopplerLabel').textContent = S.dopplerFd.toFixed(3);
+        runSim(); drawAll();
+      });
+
+      document.getElementById('fecSelect').addEventListener('change', e => {
+        S.fec = e.target.value;
+        S.berSnr = []; S.berSimArr = []; S.berThArr = [];
+        runSim(); drawAll();
+      });
+
+      document.getElementById('fftSlider').addEventListener('input', e => {
+        S.fftIdx = parseInt(e.target.value);
+        document.getElementById('fftLabel').textContent = FFT_SIZES[S.fftIdx];
+        runSim(); drawAll();
+      });
+
+      document.getElementById('cpSelect').addEventListener('change', e => {
+        S.cpRatio = parseFloat(e.target.value);
+        runSim(); drawAll();
+      });
+
+      document.getElementById('symSlider').addEventListener('input', e => {
+        S.symIdx = parseInt(e.target.value);
+        document.getElementById('symLabel').textContent = SYM_COUNTS[S.symIdx];
+        runSim(); drawAll();
+      });
+
+      document.getElementById('btnRun').addEventListener('click', () => { runSim(); drawAll(); });
+      document.getElementById('btnBER').addEventListener('click', () => { startBERSweep(); });
+      document.getElementById('btnAnimate').addEventListener('click', () => { toggleAnimate(); });
+
+      // ── Keyboard shortcuts ──
+      document.addEventListener('keydown', e => {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+        const S = STATE;
+        const step = e.shiftKey ? 5 : 1;
+        if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
+          S.snrDb = Math.min(40, S.snrDb + step);
+          const sl = document.getElementById('snrSlider');
+          sl.value = S.snrDb;
+          document.getElementById('snrLabel').textContent = S.snrDb.toFixed(1) + ' dB';
+          runSim(); drawAll(); e.preventDefault();
+        } else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
+          S.snrDb = Math.max(-5, S.snrDb - step);
+          const sl = document.getElementById('snrSlider');
+          sl.value = S.snrDb;
+          document.getElementById('snrLabel').textContent = S.snrDb.toFixed(1) + ' dB';
+          runSim(); drawAll(); e.preventDefault();
+        } else if (e.key === 'Escape') {
+          closeDemo();
+        } else if (e.key === 'e' || e.key === 'E') {
+          toggleEye();
+        } else if (e.key === 'r' || e.key === 'R') {
+          runSim(); drawAll();
+        } else if (e.key === ' ') {
+          toggleAnimate(); e.preventDefault();
+        }
+      });
+
+      // Redraw on resize
+      let resizeTimer;
+      window.addEventListener('resize', () => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(drawAll, 100);
+      });
+    }
+
+    // ════════════════════════════════════════════════════════
+    //  INIT
+    // ════════════════════════════════════════════════════════
+
+    window.addEventListener('load', () => {
+      bindUI();
+      // Warm up modulation caches
+      ['BPSK', 'QPSK', '8PSK', '16QAM', '64QAM', '256QAM', '1024QAM', '4096QAM'].forEach(m => buildMod(m));
+      runSim();
+      drawAll();
+    });
+  </script>
+</body>
+
+</html>
